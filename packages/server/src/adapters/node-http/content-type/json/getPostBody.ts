@@ -1,6 +1,6 @@
 import { TRPCError } from '../../../../error/TRPCError';
-import { BodyResult } from '../../../../http/contentType';
-import { NodeHTTPRequest } from '../../types';
+import type { BodyResult } from '../../../../http/contentType';
+import type { NodeHTTPRequest } from '../../types';
 
 export async function getPostBody(opts: {
   req: NodeHTTPRequest;
@@ -13,7 +13,8 @@ export async function getPostBody(opts: {
         ok: true,
         data: req.body,
         // If the request headers specifies a content-type, we assume that the body has been preprocessed
-        preprocessed: req.headers['content-type'] === 'application/json',
+        preprocessed:
+          !!req.headers['content-type']?.startsWith('application/json'),
       });
       return;
     }
@@ -27,7 +28,6 @@ export async function getPostBody(opts: {
           ok: false,
           error: new TRPCError({ code: 'PAYLOAD_TOO_LARGE' }),
         });
-        req.socket.destroy();
       }
     });
     req.on('end', () => {

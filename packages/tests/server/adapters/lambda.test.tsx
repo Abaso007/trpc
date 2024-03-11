@@ -3,7 +3,6 @@
  * TODO: remove in next major
  */
 import * as trpc from '@trpc/server/src';
-import { inferAsyncReturnType } from '@trpc/server/src';
 import * as trpcLambda from '@trpc/server/src/adapters/lambda';
 import type { APIGatewayProxyEvent, APIGatewayProxyEventV2 } from 'aws-lambda';
 import { z } from 'zod';
@@ -21,7 +20,7 @@ const createContext = async ({
   };
 };
 
-type Context = inferAsyncReturnType<typeof createContext>;
+type Context = Awaited<ReturnType<typeof createContext>>;
 const router = trpc
   .router<Context>()
   .query('hello', {
@@ -175,7 +174,7 @@ test('test v2 format', async () => {
       "statusCode": 200,
     }
   `);
-  const parsedBody = JSON.parse(body || '');
+  const parsedBody = JSON.parse(body ?? '');
   expect(parsedBody).toMatchInlineSnapshot(`
     Object {
       "result": Object {
@@ -212,7 +211,7 @@ test('router with no context', async () => {
       "statusCode": 200,
     }
   `);
-  const parsedBody = JSON.parse(body || '');
+  const parsedBody = JSON.parse(body ?? '');
   expect(parsedBody).toMatchInlineSnapshot(`
     Object {
       "result": Object {

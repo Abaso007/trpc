@@ -1,5 +1,6 @@
 import { createQueryClient } from '../../__queryClient';
-import { Post, createLegacyAppRouter } from './__testHelpers';
+import type { Post } from './__testHelpers';
+import { createLegacyAppRouter } from './__testHelpers';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -30,7 +31,7 @@ describe('Infinite Query', () => {
           getNextPageParam: (lastPage) => lastPage.nextCursor,
         },
       );
-      expectTypeOf(q.data?.pages[0]!.items).toMatchTypeOf<undefined | Post[]>();
+      expectTypeOf(q.data?.pages[0]!.items).toMatchTypeOf<Post[] | undefined>();
 
       return q.status === 'loading' ? (
         <p>Loading...</p>
@@ -133,7 +134,7 @@ describe('Infinite Query', () => {
           getNextPageParam: (lastPage) => lastPage.nextCursor,
         },
       );
-      expectTypeOf(q.data?.pages[0]?.items).toMatchTypeOf<undefined | Post[]>();
+      expectTypeOf(q.data?.pages[0]?.items).toMatchTypeOf<Post[] | undefined>();
 
       return q.status === 'loading' ? (
         <p>Loading...</p>
@@ -268,7 +269,7 @@ describe('Infinite Query', () => {
           getNextPageParam: (lastPage) => lastPage.nextCursor,
         },
       );
-      expectTypeOf(q.data?.pages[0]?.items).toMatchTypeOf<undefined | Post[]>();
+      expectTypeOf(q.data?.pages[0]?.items).toMatchTypeOf<Post[] | undefined>();
 
       return q.status === 'loading' ? (
         <p>Loading...</p>

@@ -1,13 +1,14 @@
-import { Context, router } from './__router';
+import type http from 'http';
+import type { Context } from './__router';
+import { router } from './__router';
 import {
-  TRPCClientError,
   createTRPCProxyClient,
   httpBatchLink,
+  TRPCClientError,
 } from '@trpc/client/src';
 import * as trpc from '@trpc/server/src';
 import * as trpcExpress from '@trpc/server/src/adapters/express';
 import express from 'express';
-import http from 'http';
 import fetch from 'node-fetch';
 
 async function startServer() {
@@ -35,6 +36,7 @@ async function startServer() {
     '/trpc',
     trpcExpress.createExpressMiddleware({
       router,
+      maxBodySize: 10, // 10 bytes,
       createContext,
     }),
   );
@@ -73,7 +75,7 @@ async function startServer() {
   };
 }
 
-let t: trpc.inferAsyncReturnType<typeof startServer>;
+let t: Awaited<ReturnType<typeof startServer>>;
 beforeAll(async () => {
   t = await startServer();
 });
@@ -104,5 +106,14 @@ test('error query', async () => {
     await t.client.exampleError.query();
   } catch (e) {
     expect(e).toStrictEqual(new TRPCClientError('Unexpected error'));
+  }
+});
+
+test('payload too large', async () => {
+  try {
+    await t.client.exampleMutation.mutate({ payload: 'a'.repeat(100) });
+    expect(true).toBe(false); // should not be reached
+  } catch (e) {
+    expect(e).toStrictEqual(new TRPCClientError('PAYLOAD_TOO_LARGE'));
   }
 });

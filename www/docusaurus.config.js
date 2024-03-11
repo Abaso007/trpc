@@ -48,14 +48,14 @@ module.exports = {
       // contextualSearch: true,
       // searchParameters: {},
     },
-    //     announcementBar: {
-    //       id: 'v10',
-    //       content:
-    //         "🚀 You are looking at tRPC <strong>version 10</strong>! Read the <a href='/blog/announcing-trpc-10'>announcement post</a> or see the <a href='/docs/migrate-from-v9-to-v10'>migration guide</a> if you're currently using tRPC v9",
-    //       backgroundColor: 'var(--ifm-color-primary-dark)',
-    //       textColor: '#ffffff',
-    //       isCloseable: true,
-    //     },
+    announcementBar: {
+      id: 'drift',
+      content:
+        "🚀 We've just released a beta version of <strong>tRPC Drift</strong> which helps you keep track of changes in your tRPC API. Check it out at <a href='https://drift.trpc.io'><strong>drift.trpc.io</strong></a>.",
+      backgroundColor: 'var(--ifm-color-primary-dark)',
+      textColor: '#ffffff',
+      isCloseable: true,
+    },
     navbar: {
       title: 'tRPC',
       logo: {
@@ -77,7 +77,7 @@ module.exports = {
           label: 'Awesome tRPC Collection',
         },
         {
-          to: 'docs/nextjs/introduction',
+          to: 'docs/client/nextjs',
           label: 'Using Next.js',
         },
         {
@@ -116,7 +116,11 @@ module.exports = {
             },
             {
               label: 'Usage with Next.js',
-              to: 'docs/nextjs/introduction',
+              to: 'docs/client/nextjs',
+            },
+            {
+              label: 'FAQ / Troubleshooting',
+              to: 'docs/faq',
             },
           ],
         },

@@ -1,6 +1,6 @@
 import { routerToServerAndClientNew } from '../server/___testHelpers';
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
-import { CreateHTTPContextOptions } from '@trpc/server/adapters/standalone';
+import { initTRPC } from '@trpc/server';
+import type { CreateHTTPContextOptions } from '@trpc/server/adapters/standalone';
 import DataLoader from 'dataloader';
 import { konn } from 'konn';
 import { z } from 'zod';
@@ -18,12 +18,12 @@ const posts = [
 
 function createContext(_opts: CreateHTTPContextOptions) {
   return {
-    postLoader: new DataLoader(async (ids: ReadonlyArray<number>) => {
+    postLoader: new DataLoader(async (ids: readonly number[]) => {
       return ids.map((id) => posts.find((post) => post.id === id));
     }),
   };
 }
-type Context = inferAsyncReturnType<typeof createContext>;
+type Context = Awaited<ReturnType<typeof createContext>>;
 
 const ctx = konn()
   .beforeEach(() => {

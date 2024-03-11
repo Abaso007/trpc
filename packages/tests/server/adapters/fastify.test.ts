@@ -1,27 +1,27 @@
+import { EventEmitter } from 'events';
 import ws from '@fastify/websocket';
 import { waitFor } from '@testing-library/react';
+import type { HTTPHeaders, TRPCLink } from '@trpc/client/src';
 import {
-  HTTPHeaders,
   createTRPCProxyClient,
   createWSClient,
-  httpLink,
   splitLink,
+  unstable_httpBatchStreamLink,
   wsLink,
 } from '@trpc/client/src';
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
-import {
+import { initTRPC } from '@trpc/server';
+import type {
   CreateFastifyContextOptions,
-  fastifyTRPCPlugin,
+  FastifyTRPCPluginOptions,
 } from '@trpc/server/src/adapters/fastify';
+import { fastifyTRPCPlugin } from '@trpc/server/src/adapters/fastify';
 import { observable } from '@trpc/server/src/observable';
-import { EventEmitter } from 'events';
 import fastify from 'fastify';
 import fp from 'fastify-plugin';
 import fetch from 'node-fetch';
 import { z } from 'zod';
 
 const config = {
-  port: 2023,
   logger: false,
   prefix: '/trpc',
 };
@@ -31,7 +31,7 @@ function createContext({ req, res }: CreateFastifyContextOptions) {
   return { req, res, user };
 }
 
-type Context = inferAsyncReturnType<typeof createContext>;
+type Context = Awaited<ReturnType<typeof createContext>>;
 
 interface Message {
   id: string;
@@ -93,23 +93,46 @@ function createAppRouter() {
       onNewMessageSubscription();
       return sub;
     }),
+    deferred: publicProcedure
+      .input(
+        z.object({
+          wait: z.number(),
+        }),
+      )
+      .query(async (opts) => {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, opts.input.wait * 10),
+        );
+        return opts.input.wait;
+      }),
   });
 
   return { appRouter, ee, onNewMessageSubscription, onSubscriptionEnded };
 }
 
-type CreateAppRouter = inferAsyncReturnType<typeof createAppRouter>;
+type CreateAppRouter = Awaited<ReturnType<typeof createAppRouter>>;
 type AppRouter = CreateAppRouter['appRouter'];
 
 interface ServerOptions {
   appRouter: AppRouter;
   fastifyPluginWrapper?: boolean;
+  withContentTypeParser?: boolean;
 }
 
 type PostPayload = { Body: { text: string; life: number } };
 
 function createServer(opts: ServerOptions) {
   const instance = fastify({ logger: config.logger });
+
+  if (opts.withContentTypeParser) {
+    instance.addContentTypeParser(
+      'application/json',
+      { parseAs: 'string' },
+      function (_, body, _done) {
+        _done(null, body);
+      },
+    );
+  }
 
   const plugin = !!opts.fastifyPluginWrapper
     ? fp(fastifyTRPCPlugin)
@@ -121,7 +144,15 @@ function createServer(opts: ServerOptions) {
   instance.register(plugin, {
     useWSS: true,
     prefix: config.prefix,
-    trpcOptions: { router, createContext },
+    trpcOptions: {
+      router,
+      createContext,
+      onError(data) {
+        // report to error monitoring
+        data;
+        // ^?
+      },
+    } satisfies FastifyTRPCPluginOptions<AppRouter>['trpcOptions'],
   });
 
   instance.get('/hello', async () => {
@@ -135,32 +166,46 @@ function createServer(opts: ServerOptions) {
   const stop = async () => {
     await instance.close();
   };
-  const start = async () => {
-    try {
-      await instance.listen({ port: config.port });
-    } catch (err) {
-      instance.log.error(err);
-    }
-  };
-
-  return { instance, start, stop };
+  return { instance, stop };
 }
+
+const orderedResults: number[] = [];
+const linkSpy: TRPCLink<AppRouter> = () => {
+  // here we just got initialized in the app - this happens once per app
+  // useful for storing cache for instance
+  return ({ next, op }) => {
+    // this is when passing the result to the next link
+    // each link needs to return an observable which propagates results
+    return observable((observer) => {
+      const unsubscribe = next(op).subscribe({
+        next(value) {
+          orderedResults.push((value.result as any).data);
+          observer.next(value);
+        },
+        error: observer.error,
+      });
+      return unsubscribe;
+    });
+  };
+};
 
 interface ClientOptions {
   headers?: HTTPHeaders;
+  port: number | string;
 }
 
-function createClient(opts: ClientOptions = {}) {
-  const host = `localhost:${config.port}${config.prefix}`;
+function createClient(opts: ClientOptions) {
+  const host = `localhost:${opts.port}${config.prefix}`;
   const wsClient = createWSClient({ url: `ws://${host}` });
   const client = createTRPCProxyClient<AppRouter>({
     links: [
+      linkSpy,
       splitLink({
         condition(op) {
           return op.type === 'subscription';
         },
         true: wsLink({ client: wsClient }),
-        false: httpLink({
+        false: unstable_httpBatchStreamLink({
           url: `http://${host}`,
           headers: opts.headers,
           AbortController,
@@ -174,27 +219,30 @@ function createClient(opts: ClientOptions = {}) {
 }
 
 interface AppOptions {
-  clientOptions?: ClientOptions;
+  clientOptions?: Partial<ClientOptions>;
   serverOptions?: Partial<ServerOptions>;
 }
 
-function createApp(opts: AppOptions = {}) {
+async function createApp(opts: AppOptions = {}) {
   const { appRouter, ee } = createAppRouter();
-  const { instance, start, stop } = createServer({
+  const { instance, stop } = createServer({
     ...(opts.serverOptions ?? {}),
     appRouter,
   });
-  const { client } = createClient(opts.clientOptions);
 
-  return { server: instance, start, stop, client, ee };
+  const url = new URL(await instance.listen({ port: 0 }));
+
+  const { client } = createClient({ ...opts.clientOptions, port: url.port });
+
+  return { server: instance, stop, client, ee, url };
 }
 
-let app: inferAsyncReturnType<typeof createApp>;
+let app: Awaited<ReturnType<typeof createApp>>;
 
 describe('anonymous user', () => {
   beforeEach(async () => {
-    app = createApp();
-    await app.start();
+    orderedResults.length = 0;
+    app = await createApp();
   });
 
   afterEach(async () => {
@@ -203,7 +251,7 @@ describe('anonymous user', () => {
 
   test('fetch POST', async () => {
     const data = { text: 'life', life: 42 };
-    const req = await fetch(`http://localhost:${config.port}/hello`, {
+    const req = await fetch(`http://localhost:${app.url.port}/hello`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -317,12 +365,21 @@ describe('anonymous user', () => {
       expect(app.ee.listenerCount('server:error')).toBe(0);
     });
   });
+
+  test('streaming', async () => {
+    const results = await Promise.all([
+      app.client.deferred.query({ wait: 3 }),
+      app.client.deferred.query({ wait: 1 }),
+      app.client.deferred.query({ wait: 2 }),
+    ]);
+    expect(results).toEqual([3, 1, 2]);
+    expect(orderedResults).toEqual([1, 2, 3]);
+  });
 });
 
 describe('authorized user', () => {
   beforeEach(async () => {
-    app = createApp({ clientOptions: { headers: { username: 'nyan' } } });
-    await app.start();
+    app = await createApp({ clientOptions: { headers: { username: 'nyan' } } });
   });
 
   afterEach(async () => {
@@ -355,8 +412,7 @@ describe('authorized user', () => {
 
 describe('anonymous user with fastify-plugin', () => {
   beforeEach(async () => {
-    app = createApp({ serverOptions: { fastifyPluginWrapper: true } });
-    await app.start();
+    app = await createApp({ serverOptions: { fastifyPluginWrapper: true } });
   });
 
   afterEach(async () => {
@@ -364,13 +420,13 @@ describe('anonymous user with fastify-plugin', () => {
   });
 
   test('fetch GET', async () => {
-    const req = await fetch(`http://localhost:${config.port}/hello`);
+    const req = await fetch(`http://localhost:${app.url.port}/hello`);
     expect(await req.json()).toEqual({ hello: 'GET' });
   });
 
   test('fetch POST', async () => {
     const data = { text: 'life', life: 42 };
-    const req = await fetch(`http://localhost:${config.port}/hello`, {
+    const req = await fetch(`http://localhost:${app.url.port}/hello`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -403,5 +459,25 @@ describe('anonymous user with fastify-plugin', () => {
             "text": "hello test",
           }
       `);
+  });
+});
+
+// https://github.com/trpc/trpc/issues/4820
+describe('regression #4820 - content type parser already set', () => {
+  beforeEach(async () => {
+    app = await createApp({
+      serverOptions: {
+        fastifyPluginWrapper: true,
+        withContentTypeParser: true,
+      },
+    });
+  });
+
+  afterEach(async () => {
+    await app.stop();
+  });
+
+  test('query', async () => {
+    expect(await app.client.ping.query()).toMatchInlineSnapshot(`"pong"`);
   });
 });

@@ -1,7 +1,7 @@
-import { inferObservableValue } from '../observable';
-import { inferTransformedProcedureOutput } from '../shared';
-import { AnyProcedure, ProcedureArgs } from './procedure';
-import { AnyRouter, AnyRouterDef, Router } from './router';
+import type { inferObservableValue } from '../observable';
+import type { inferTransformedProcedureOutput } from '../shared/jsonify';
+import type { AnyProcedure, ProcedureArgs } from './procedure';
+import type { AnyRouter, AnyRouterDef, Router } from './router';
 
 export type inferRouterDef<TRouter extends AnyRouter> = TRouter extends Router<
   infer TParams
@@ -42,7 +42,7 @@ export type inferProcedureOutput<TProcedure> =
  */
 export type inferSubscriptionOutput<
   TRouter extends AnyRouter,
-  TPath extends keyof TRouter['_def']['subscriptions'] & string,
+  TPath extends string & keyof TRouter['_def']['subscriptions'],
 > = inferObservableValue<
   inferProcedureOutput<TRouter['_def']['subscriptions'][TPath]>
 >;

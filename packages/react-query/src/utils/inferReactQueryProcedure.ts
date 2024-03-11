@@ -1,13 +1,13 @@
-import { TRPCClientErrorLike } from '@trpc/client';
-import {
+import type { TRPCClientErrorLike } from '@trpc/client';
+import type {
   AnyMutationProcedure,
   AnyProcedure,
   AnyQueryProcedure,
   AnyRouter,
   inferProcedureInput,
 } from '@trpc/server';
-import { inferTransformedProcedureOutput } from '@trpc/server/shared';
-import {
+import type { inferTransformedProcedureOutput } from '@trpc/server/shared';
+import type {
   UseTRPCMutationOptions,
   UseTRPCMutationResult,
   UseTRPCQueryOptions,
@@ -20,13 +20,15 @@ import {
 export type InferQueryOptions<
   TProcedure extends AnyProcedure,
   TPath extends string,
+  TData = inferTransformedProcedureOutput<TProcedure>,
 > = Omit<
   UseTRPCQueryOptions<
     TPath,
     inferProcedureInput<TProcedure>,
     inferTransformedProcedureOutput<TProcedure>,
     inferTransformedProcedureOutput<TProcedure>,
-    TRPCClientErrorLike<TProcedure>
+    TRPCClientErrorLike<TProcedure>,
+    TData
   >,
   'select'
 >;

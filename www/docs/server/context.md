@@ -16,7 +16,9 @@ When initializing tRPC using `initTRPC`, you should pipe `.context<TContext>()` 
 This will make sure your context is properly typed in your procedures and middlewares.
 
 ```ts twoslash
-import { initTRPC, type inferAsyncReturnType } from '@trpc/server';
+import * as trpc from '@trpc/server';
+// ---cut---
+import { initTRPC } from '@trpc/server';
 import type { CreateNextContextOptions } from '@trpc/server/adapters/next';
 import { getSession } from 'next-auth/react';
 
@@ -33,7 +35,7 @@ const t1 = initTRPC.context<typeof createContext>().create();
 t1.procedure.use(({ ctx }) => { ... });
 //                  ^?
 
-type Context = inferAsyncReturnType<typeof createContext>;
+type Context = Awaited<ReturnType<typeof createContext>>;
 const t2 = initTRPC.context<Context>().create();
 // @noErrors
 t2.procedure.use(({ ctx }) => { ... });
@@ -42,7 +44,7 @@ t2.procedure.use(({ ctx }) => { ... });
 
 ## Creating the context
 
-The `createContext()` function must be passed to the handler that is mounting your appRouter, which may be via HTTP, a [server-side call](server-side-calls) or our [server-side helpers](/docs/nextjs/server-side-helpers).
+The `createContext()` function must be passed to the handler that is mounting your appRouter, which may be via HTTP, a [server-side call](server-side-calls) or our [server-side helpers](/docs/client/nextjs/server-side-helpers).
 
 `createContext()` is called for each invocation of tRPC, so batched requests will share a context.
 
@@ -50,7 +52,7 @@ The `createContext()` function must be passed to the handler that is mounting yo
 // 1. HTTP request
 import { createHTTPHandler } from '@trpc/server/adapters/standalone';
 import { createContext } from './context';
-import { appRouter } from './router';
+import { createCaller } from './router';
 
 const handler = createHTTPHandler({
   router: appRouter,
@@ -61,9 +63,9 @@ const handler = createHTTPHandler({
 ```ts
 // 2. Server-side call
 import { createContext } from './context';
-import { appRouter } from './router';
+import { createCaller } from './router';
 
-const caller = appRouter.createCaller(await createContext());
+const caller = createCaller(await createContext());
 ```
 
 ```ts
@@ -86,7 +88,6 @@ const helpers = createServerSideHelpers({
 // -------------------------------------------------
 // @filename: context.ts
 // -------------------------------------------------
-import type { inferAsyncReturnType } from '@trpc/server';
 import type { CreateNextContextOptions } from '@trpc/server/adapters/next';
 import { getSession } from 'next-auth/react';
 
@@ -102,7 +103,7 @@ export async function createContext(opts: CreateNextContextOptions) {
   };
 }
 
-export type Context = inferAsyncReturnType<typeof createContext>;
+export type Context = Awaited<ReturnType<typeof createContext>>;
 
 // -------------------------------------------------
 // @filename: trpc.ts
@@ -112,21 +113,7 @@ import { Context } from './context';
 
 const t = initTRPC.context<Context>().create();
 
-const isAuthed = t.middleware(({ next, ctx }) => {
-  if (!ctx.session?.user?.email) {
-    throw new TRPCError({
-      code: 'UNAUTHORIZED',
-    });
-  }
-  return next({
-    ctx: {
-      // Infers the `session` as non-nullable
-      session: ctx.session,
-    },
-  });
-});
 
-export const middleware = t.middleware;
 export const router = t.router;
 
 /**
@@ -137,7 +124,19 @@ export const publicProcedure = t.procedure;
 /**
  * Protected procedure
  */
-export const protectedProcedure = t.procedure.use(isAuthed);
+export const protectedProcedure = t.procedure.use(function isAuthed(opts) {
+  if (!opts.ctx.session?.user?.email) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+    });
+  }
+  return opts.next({
+    ctx: {
+      // Infers the `session` as non-nullable
+      session: opts.ctx.session,
+    },
+  });
+});
 ```
 
 <!-- prettier-ignore-end -->
@@ -146,14 +145,13 @@ export const protectedProcedure = t.procedure.use(isAuthed);
 
 In some scenarios it could make sense to split up your context into "inner" and "outer" functions.
 
-**Inner context** is where you define context which doesn’t depend on the request, e.g. your database connection. You can use this function for integration testing or [server-side helpers](/docs/nextjs/server-side-helpers), where you don’t have a request object. Whatever is defined here will **always** be available in your procedures.
+**Inner context** is where you define context which doesn’t depend on the request, e.g. your database connection. You can use this function for integration testing or [server-side helpers](/docs/client/nextjs/server-side-helpers), where you don’t have a request object. Whatever is defined here will **always** be available in your procedures.
 
 **Outer context** is where you define context which depends on the request, e.g. for the user's session. Whatever is defined here is only available for procedures that are called via HTTP.
 
 ### Example for inner & outer context
 
 ```ts
-import type { inferAsyncReturnType } from '@trpc/server';
 import type { CreateNextContextOptions } from '@trpc/server/adapters/next';
 import { getSessionFromCookie, type Session } from './auth';
 
@@ -198,7 +196,7 @@ export async function createContext(opts: CreateNextContextOptions) {
   };
 }
 
-export type Context = inferAsyncReturnType<typeof createContextInner>;
+export type Context = Awaited<ReturnType<typeof createContextInner>>;
 
 // The usage in your router is the same as the example above.
 ```

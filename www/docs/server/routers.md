@@ -21,7 +21,6 @@ import { initTRPC } from '@trpc/server';
 const t = initTRPC.create();
 
 export const router = t.router;
-export const middleware = t.middleware;
 export const publicProcedure = t.procedure;
 ```
 
@@ -39,13 +38,13 @@ import { initTRPC } from '@trpc/server';
 const t = initTRPC.create();
 
 
-export const middleware = t.middleware;
+
 export const publicProcedure = t.procedure;
 export const router = t.router;
 
 // @filename: _app.ts
-// ---cut---
 import * as trpc from '@trpc/server';
+// ---cut---
 import { publicProcedure, router } from './trpc';
 
 const appRouter = router({

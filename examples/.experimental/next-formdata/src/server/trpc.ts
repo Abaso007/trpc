@@ -4,11 +4,11 @@
  * - We export only the functionality that we use so we can enforce which base procedures should be used
  *
  * Learn how to create protected base procedures and other things below:
- * @see https://trpc.io/docs/v10/router
- * @see https://trpc.io/docs/v10/procedures
+ * @see https://trpc.io/docs/router
+ * @see https://trpc.io/docs/procedures
  */
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
-import * as trpcNext from '@trpc/server/adapters/next';
+import { initTRPC } from '@trpc/server';
+import type * as trpcNext from '@trpc/server/adapters/next';
 import { ZodError } from 'zod';
 
 /**
@@ -21,7 +21,7 @@ export async function createContext(opts: trpcNext.CreateNextContextOptions) {
   };
 }
 
-export type Context = inferAsyncReturnType<typeof createContext>;
+export type Context = Awaited<ReturnType<typeof createContext>>;
 
 const t = initTRPC.context<Context>().create({
   errorFormatter(opts) {
@@ -44,4 +44,3 @@ const t = initTRPC.context<Context>().create({
 export const publicProcedure = t.procedure;
 
 export const router = t.router;
-export const middleware = t.middleware;

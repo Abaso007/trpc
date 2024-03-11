@@ -1,58 +1,77 @@
-import { Suspense } from 'react';
-import { api } from 'trpc-api';
-import { ClientGreeting } from './ClientGreeting';
-import { ServerGreeting } from './ServerGreeting';
+import { auth } from '~/auth';
+import Link from 'next/link';
 
-export default async function Home() {
-  const promise = new Promise(async (resolve) => {
-    await new Promise((r) => setTimeout(r, 1000)); // wait for demo purposes
-    resolve(api.greeting.query({ text: 'streamed server data' }));
-  });
+export default async function Index() {
+  const session = await auth();
 
   return (
-    <main
-      style={{
-        width: '100vw',
-        height: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        fontSize: '1.1rem',
-      }}
-    >
-      <div
+    <>
+      <Link
+        href={session ? '/api/auth/signout' : '/api/auth/signin'}
         style={{
-          width: '12rem',
-          padding: '1rem',
-          background: '#e5e5e5',
+          backgroundColor: '#0077cc', // Green
+          border: 'none',
+          color: 'white',
+          padding: '0.5rem 1rem',
           borderRadius: '0.5rem',
+          textAlign: 'center',
+          textDecoration: 'none',
+          display: 'inline-block',
         }}
       >
-        <div>
-          <Suspense fallback={<>Loading client...</>}>
-            <ClientGreeting />
-          </Suspense>
-        </div>
+        {session ? 'Sign out' : 'Sign in'}
+      </Link>
 
-        <div>
-          <Suspense fallback={<>Loading Server...</>}>
-            {/* @ts-expect-error RSC + TS not friends yet */}
-            <ServerGreeting />
-          </Suspense>
-        </div>
-        <div>
-          <Suspense fallback={<>Loading stream...</>}>
-            {/** @ts-expect-error - Async Server Component */}
-            <StreamedSC promise={promise} />
-          </Suspense>
-        </div>
-      </div>
-    </main>
+      <h3>Showcase Pages</h3>
+      <ul
+        style={{
+          listStyle: 'disc',
+          listStylePosition: 'inside',
+          padding: 0,
+        }}
+      >
+        <li>
+          <Link
+            href="/rsc"
+            style={{
+              color: 'hsla(210, 16%, 80%, 1)',
+            }}
+          >
+            React Server Components
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/client"
+            style={{
+              color: 'hsla(210, 16%, 80%, 1)',
+            }}
+          >
+            Client Side Data Fetching
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/server-action"
+            style={{
+              color: 'hsla(210, 16%, 80%, 1)',
+            }}
+          >
+            Server Action
+          </Link>
+        </li>
+
+        <li>
+          <Link
+            href="/post-example"
+            style={{
+              color: 'hsla(210, 16%, 80%, 1)',
+            }}
+          >
+            Full stack Post Example
+          </Link>
+        </li>
+      </ul>
+    </>
   );
-}
-
-async function StreamedSC(props: { promise: Promise<string> }) {
-  const data = await props.promise;
-
-  return <div>{data}</div>;
 }

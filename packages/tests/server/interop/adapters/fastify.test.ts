@@ -1,20 +1,19 @@
+import { EventEmitter } from 'events';
 import ws from '@fastify/websocket';
 import { waitFor } from '@testing-library/react';
+import type { HTTPHeaders } from '@trpc/client/src';
 import {
-  HTTPHeaders,
   createTRPCClient,
   createWSClient,
   httpLink,
   splitLink,
   wsLink,
 } from '@trpc/client/src';
-import { inferAsyncReturnType, router } from '@trpc/server/src';
-import {
-  CreateFastifyContextOptions,
-  fastifyTRPCPlugin,
-} from '@trpc/server/src/adapters/fastify';
+import type { inferAsyncReturnType } from '@trpc/server/src';
+import { router } from '@trpc/server/src';
+import type { CreateFastifyContextOptions } from '@trpc/server/src/adapters/fastify';
+import { fastifyTRPCPlugin } from '@trpc/server/src/adapters/fastify';
 import { observable } from '@trpc/server/src/observable';
-import { EventEmitter } from 'events';
 import fastify from 'fastify';
 import fp from 'fastify-plugin';
 import fetch from 'node-fetch';

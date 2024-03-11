@@ -133,8 +133,7 @@ const ctx = konn()
             const limit = input.limit ?? 50;
             const { cursor } = input;
             let nextCursor: typeof cursor = null;
-            for (let index = 0; index < db.posts.length; index++) {
-              const element = db.posts[index]!;
+            for (const element of db.posts) {
               if (cursor != null && element.createdAt < cursor) {
                 continue;
               }
@@ -238,7 +237,7 @@ test('Check invalidation of Whole router', async () => {
     useSetupAllTestHooks(ctx.proxy);
     const isFetching = useIsFetching();
 
-    const utils = proxy.useContext();
+    const utils = proxy.useUtils();
 
     return (
       <div>
@@ -303,7 +302,7 @@ test('Check invalidating at router root invalidates all', async () => {
     useSetupAllTestHooks(ctx.proxy);
     const isFetching = useIsFetching();
 
-    const utils = proxy.useContext();
+    const utils = proxy.useUtils();
 
     return (
       <div>
@@ -362,7 +361,7 @@ test('test TS types of the input variable', async () => {
     useSetupAllTestHooks(ctx.proxy);
     const isFetching = useIsFetching();
 
-    const utils = proxy.useContext();
+    const utils = proxy.useUtils();
 
     ignoreErrors(() => {
       // @ts-expect-error from user.details should not see id from `posts.byid`

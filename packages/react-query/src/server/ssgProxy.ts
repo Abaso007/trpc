@@ -1,24 +1,21 @@
-import {
-  DehydrateOptions,
+import type {
   DehydratedState,
+  DehydrateOptions,
   InfiniteData,
   QueryClient,
 } from '@tanstack/react-query';
-import {
+import type {
   AnyProcedure,
   AnyQueryProcedure,
   AnyRouter,
   Filter,
-  ProtectedIntersection,
   inferHandlerInput,
+  ProtectedIntersection,
 } from '@trpc/server';
-import {
-  createFlatProxy,
-  createRecursiveProxy,
-  inferTransformedProcedureOutput,
-} from '@trpc/server/shared';
+import type { inferTransformedProcedureOutput } from '@trpc/server/shared';
+import { createFlatProxy, createRecursiveProxy } from '@trpc/server/shared';
 import { createSSGHelpers } from '../ssg/ssg';
-import { CreateSSGHelpersOptions } from './types';
+import type { CreateServerSideHelpersOptions } from './types';
 
 type DecorateProcedure<TProcedure extends AnyProcedure> = {
   /**
@@ -52,7 +49,7 @@ type DecorateProcedure<TProcedure extends AnyProcedure> = {
 export type DecoratedProcedureSSGRecord<TRouter extends AnyRouter> = {
   [TKey in keyof Filter<
     TRouter['_def']['record'],
-    AnyRouter | AnyQueryProcedure
+    AnyQueryProcedure | AnyRouter
   >]: TRouter['_def']['record'][TKey] extends AnyRouter
     ? DecoratedProcedureSSGRecord<TRouter['_def']['record'][TKey]>
     : // utils only apply to queries
@@ -63,9 +60,10 @@ type AnyDecoratedProcedure = DecorateProcedure<any>;
 
 /**
  * Create functions you can use for server-side rendering / static generation
+ * @see https://trpc.io/docs/client/nextjs/server-side-helpers
  */
 export function createServerSideHelpers<TRouter extends AnyRouter>(
-  opts: CreateSSGHelpersOptions<TRouter>,
+  opts: CreateServerSideHelpersOptions<TRouter>,
 ) {
   const helpers = createSSGHelpers(opts);
 
@@ -94,20 +92,11 @@ export function createServerSideHelpers<TRouter extends AnyRouter>(
 
       const fullPath = pathCopy.join('.');
 
-      switch (utilName) {
-        case 'fetch': {
-          return helpers.fetchQuery(fullPath, ...(args as any));
-        }
-        case 'fetchInfinite': {
-          return helpers.fetchInfiniteQuery(fullPath, ...(args as any));
-        }
-        case 'prefetch': {
-          return helpers.prefetchQuery(fullPath, ...(args as any));
-        }
-        case 'prefetchInfinite': {
-          return helpers.prefetchInfiniteQuery(fullPath, ...(args as any));
-        }
-      }
+      const helperKey = `${utilName}Query` as const;
+      //     ^?
+
+      const fn: (...args: any) => any = helpers[helperKey];
+      return fn(fullPath, ...args);
     });
   });
 }

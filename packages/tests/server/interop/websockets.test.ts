@@ -1,16 +1,18 @@
+import { EventEmitter } from 'events';
 import { routerToServerAndClientNew, waitMs } from '../___testHelpers';
 import { waitFor } from '@testing-library/react';
-import { TRPCClientError } from '@trpc/client/src';
+import type { TRPCClientError } from '@trpc/client/src';
 import { createWSClient, wsLink } from '@trpc/client/src';
 import * as trpc from '@trpc/server/src';
-import { AnyRouter, TRPCError } from '@trpc/server/src';
+import type { AnyRouter } from '@trpc/server/src';
+import { TRPCError } from '@trpc/server/src';
 import { applyWSSHandler } from '@trpc/server/src/adapters/ws';
-import { Observer, observable } from '@trpc/server/src/observable';
-import {
+import type { Observer } from '@trpc/server/src/observable';
+import { observable } from '@trpc/server/src/observable';
+import type {
   TRPCClientOutgoingMessage,
   TRPCRequestMessage,
 } from '@trpc/server/src/rpc';
-import { EventEmitter } from 'events';
 import WebSocket, { Server } from 'ws';
 import { z } from 'zod';
 
@@ -306,12 +308,8 @@ test('server subscription ended', async () => {
   // destroy server subscription
   subRef.current.complete();
   await waitFor(() => {
-    expect(onErrorMock).toHaveBeenCalledTimes(1);
+    expect(onCompleteMock).toHaveBeenCalledTimes(1);
   });
-  expect(onCompleteMock).toHaveBeenCalledTimes(0);
-  expect(onErrorMock.mock.calls[0]![0]!).toMatchInlineSnapshot(
-    `[TRPCClientError: Operation ended prematurely]`,
-  );
   await close();
 });
 
@@ -875,8 +873,12 @@ test('wsClient stops reconnecting after .await close()', async () => {
     retryDelayMs: retryDelayMsMock,
   });
 
-  await waitFor(() => expect(retryDelayMsMock).toHaveBeenCalledTimes(1));
-  await waitFor(() => expect(retryDelayMsMock).toHaveBeenCalledTimes(2));
+  await waitFor(() => {
+    expect(retryDelayMsMock).toHaveBeenCalledTimes(1);
+  });
+  await waitFor(() => {
+    expect(retryDelayMsMock).toHaveBeenCalledTimes(2);
+  });
   wsClient.close();
   await waitMs(100);
   expect(retryDelayMsMock).toHaveBeenCalledTimes(2);

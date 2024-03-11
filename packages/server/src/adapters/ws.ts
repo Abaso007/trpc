@@ -1,98 +1,24 @@
-import { IncomingMessage } from 'http';
-import ws from 'ws';
-import {
-  AnyRouter,
-  ProcedureType,
-  callProcedure,
-  inferRouterContext,
-} from '../core';
-import { TRPCError, getTRPCErrorFromUnknown } from '../error/TRPCError';
-import { getCauseFromUnknown } from '../error/utils';
-import { BaseHandlerOptions } from '../internals/types';
-import { Unsubscribable, isObservable } from '../observable';
-import {
+import type { IncomingMessage } from 'http';
+import type { WebSocket, WebSocketServer } from 'ws';
+import type { AnyRouter, inferRouterContext } from '../core';
+import { callProcedure } from '../core';
+import { getTRPCErrorFromUnknown, TRPCError } from '../error/TRPCError';
+import type { BaseHandlerOptions } from '../internals/types';
+import type { Unsubscribable } from '../observable';
+import { isObservable } from '../observable';
+import type {
   JSONRPC2,
   TRPCClientOutgoingMessage,
   TRPCReconnectNotification,
   TRPCResponseMessage,
 } from '../rpc';
+import { parseTRPCMessage } from '../rpc';
+import { getErrorShape } from '../shared/getErrorShape';
 import { transformTRPCResponse } from '../shared/transformTRPCResponse';
-import { CombinedDataTransformer } from '../transformer';
-import {
+import type {
   NodeHTTPCreateContextFnOptions,
   NodeHTTPCreateContextOption,
 } from './node-http';
-
-/* istanbul ignore next -- @preserve */
-function assertIsObject(obj: unknown): asserts obj is Record<string, unknown> {
-  if (typeof obj !== 'object' || Array.isArray(obj) || !obj) {
-    throw new Error('Not an object');
-  }
-}
-/* istanbul ignore next -- @preserve */
-function assertIsProcedureType(obj: unknown): asserts obj is ProcedureType {
-  if (obj !== 'query' && obj !== 'subscription' && obj !== 'mutation') {
-    throw new Error('Invalid procedure type');
-  }
-}
-/* istanbul ignore next -- @preserve */
-function assertIsRequestId(
-  obj: unknown,
-): asserts obj is number | string | null {
-  if (
-    obj !== null &&
-    typeof obj === 'number' &&
-    isNaN(obj) &&
-    typeof obj !== 'string'
-  ) {
-    throw new Error('Invalid request id');
-  }
-}
-/* istanbul ignore next -- @preserve */
-function assertIsString(obj: unknown): asserts obj is string {
-  if (typeof obj !== 'string') {
-    throw new Error('Invalid string');
-  }
-}
-/* istanbul ignore next -- @preserve */
-function assertIsJSONRPC2OrUndefined(
-  obj: unknown,
-): asserts obj is '2.0' | undefined {
-  if (typeof obj !== 'undefined' && obj !== '2.0') {
-    throw new Error('Must be JSONRPC 2.0');
-  }
-}
-export function parseMessage(
-  obj: unknown,
-  transformer: CombinedDataTransformer,
-): TRPCClientOutgoingMessage {
-  assertIsObject(obj);
-  const { method, params, id, jsonrpc } = obj;
-  assertIsRequestId(id);
-  assertIsJSONRPC2OrUndefined(jsonrpc);
-  if (method === 'subscription.stop') {
-    return {
-      id,
-      jsonrpc,
-      method,
-    };
-  }
-  assertIsProcedureType(method);
-  assertIsObject(params);
-
-  const { input: rawInput, path } = params;
-  assertIsString(path);
-  const input = transformer.input.deserialize(rawInput);
-  return {
-    id,
-    jsonrpc,
-    method,
-    params: {
-      input,
-      path,
-    },
-  };
-}
 
 /**
  * Web socket server handler
@@ -100,14 +26,15 @@ export function parseMessage(
 export type WSSHandlerOptions<TRouter extends AnyRouter> = BaseHandlerOptions<
   TRouter,
   IncomingMessage
-> & {
-  wss: ws.Server;
-  process?: NodeJS.Process;
-} & NodeHTTPCreateContextOption<TRouter, IncomingMessage, ws>;
+> &
+  NodeHTTPCreateContextOption<TRouter, IncomingMessage, WebSocket> & {
+    wss: WebSocketServer;
+    process?: NodeJS.Process;
+  };
 
 export type CreateWSSContextFnOptions = NodeHTTPCreateContextFnOptions<
   IncomingMessage,
-  ws
+  WebSocket
 >;
 
 export function applyWSSHandler<TRouter extends AnyRouter>(
@@ -121,13 +48,15 @@ export function applyWSSHandler<TRouter extends AnyRouter>(
 
     function respond(untransformedJSON: TRPCResponseMessage) {
       client.send(
-        JSON.stringify(transformTRPCResponse(router, untransformedJSON)),
+        JSON.stringify(
+          transformTRPCResponse(router._def._config, untransformedJSON),
+        ),
       );
     }
 
     function stopSubscription(
       subscription: Unsubscribable,
-      { id, jsonrpc }: { id: JSONRPC2.RequestId } & JSONRPC2.BaseEnvelope,
+      { id, jsonrpc }: JSONRPC2.BaseEnvelope & { id: JSONRPC2.RequestId },
     ) {
       subscription.unsubscribe();
 
@@ -211,7 +140,8 @@ export function applyWSSHandler<TRouter extends AnyRouter>(
             respond({
               id,
               jsonrpc,
-              error: router.getErrorShape({
+              error: getErrorShape({
+                config: router._def._config,
                 error,
                 type,
                 path,
@@ -263,7 +193,8 @@ export function applyWSSHandler<TRouter extends AnyRouter>(
         respond({
           id,
           jsonrpc,
-          error: router.getErrorShape({
+          error: getErrorShape({
+            config: router._def._config,
             error,
             type,
             path,
@@ -275,21 +206,23 @@ export function applyWSSHandler<TRouter extends AnyRouter>(
     }
     client.on('message', async (message) => {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const msgJSON: unknown = JSON.parse(message.toString());
         const msgs: unknown[] = Array.isArray(msgJSON) ? msgJSON : [msgJSON];
         const promises = msgs
-          .map((raw) => parseMessage(raw, transformer))
+          .map((raw) => parseTRPCMessage(raw, transformer))
           .map(handleRequest);
         await Promise.all(promises);
       } catch (cause) {
         const error = new TRPCError({
           code: 'PARSE_ERROR',
-          cause: getCauseFromUnknown(cause),
+          cause,
         });
 
         respond({
           id: null,
-          error: router.getErrorShape({
+          error: getErrorShape({
+            config: router._def._config,
             error,
             type: 'unknown',
             path: undefined,
@@ -336,7 +269,8 @@ export function applyWSSHandler<TRouter extends AnyRouter>(
         });
         respond({
           id: null,
-          error: router.getErrorShape({
+          error: getErrorShape({
+            config: router._def._config,
             error,
             type: 'unknown',
             path: undefined,

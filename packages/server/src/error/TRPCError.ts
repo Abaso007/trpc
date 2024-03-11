@@ -1,9 +1,13 @@
-import { TRPC_ERROR_CODE_KEY } from '../rpc/codes';
-import { getMessageFromUnknownError } from './utils';
+import type { TRPC_ERROR_CODE_KEY } from '../rpc/codes';
+import { getCauseFromUnknown } from '../shared/getCauseFromUnknown';
 
 export function getTRPCErrorFromUnknown(cause: unknown): TRPCError {
   if (cause instanceof TRPCError) {
     return cause;
+  }
+  if (cause instanceof Error && cause.name === 'TRPCError') {
+    // https://github.com/trpc/trpc/pull/4848
+    return cause as TRPCError;
   }
 
   const trpcError = new TRPCError({
@@ -20,7 +24,9 @@ export function getTRPCErrorFromUnknown(cause: unknown): TRPCError {
 }
 
 export class TRPCError extends Error {
-  public readonly cause?: Error;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore override doesn't work in all environments due to "This member cannot have an 'override' modifier because it is not declared in the base class 'Error'"
+  public override readonly cause?: Error;
   public readonly code;
 
   constructor(opts: {
@@ -28,14 +34,19 @@ export class TRPCError extends Error {
     code: TRPC_ERROR_CODE_KEY;
     cause?: unknown;
   }) {
-    const message =
-      opts.message ?? getMessageFromUnknownError(opts.cause, opts.code);
+    const cause = getCauseFromUnknown(opts.cause);
+    const message = opts.message ?? cause?.message ?? opts.code;
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore https://github.com/tc39/proposal-error-cause
-    super(message, { cause: opts.cause });
+    super(message, { cause });
 
     this.code = opts.code;
-    this.name = this.constructor.name;
+    this.name = 'TRPCError';
+
+    if (!this.cause) {
+      // < ES2022 / < Node 16.9.0 compatability
+      this.cause = cause;
+    }
   }
 }

@@ -1,24 +1,27 @@
 import type {
-  Context as APIGWContext,
   APIGatewayProxyEvent,
   APIGatewayProxyEventV2,
   APIGatewayProxyResult,
   APIGatewayProxyStructuredResultV2,
+  Context as APIGWContext,
 } from 'aws-lambda';
 import { TRPCError } from '../..';
-import { AnyRouter, inferRouterContext } from '../../core';
-import { HTTPRequest, resolveHTTPResponse } from '../../http';
-import { HTTPResponse } from '../../http/internals/types';
-import {
+import type { AnyRouter, inferRouterContext } from '../../core';
+import type { HTTPRequest } from '../../http';
+import { resolveHTTPResponse } from '../../http';
+import type { HTTPResponse } from '../../http/internals/types';
+import type {
   APIGatewayEvent,
   APIGatewayResult,
   AWSLambdaOptions,
-  UNKNOWN_PAYLOAD_FORMAT_VERSION_ERROR_MESSAGE,
+} from './utils';
+import {
   getHTTPMethod,
   getPath,
   isPayloadV1,
   isPayloadV2,
   transformHeaders,
+  UNKNOWN_PAYLOAD_FORMAT_VERSION_ERROR_MESSAGE,
 } from './utils';
 
 export * from './utils';

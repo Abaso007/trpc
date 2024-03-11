@@ -1,6 +1,6 @@
-import { AnyRouter } from '../core';
-import { BaseHandlerOptions } from '../internals/types';
-import { HTTPHeaders, ResponseMetaFn } from './internals/types';
+import type { AnyRouter } from '../core';
+import type { BaseHandlerOptions } from '../internals/types';
+import type { HTTPHeaders, ResponseMetaFn } from './internals/types';
 
 export interface HTTPRequest {
   method: string;
@@ -24,5 +24,5 @@ export interface HTTPBaseHandlerOptions<TRouter extends AnyRouter, TRequest>
 
 export interface ResponseMeta {
   status?: number;
-  headers?: Record<string, string>;
+  headers?: HTTPHeaders;
 }

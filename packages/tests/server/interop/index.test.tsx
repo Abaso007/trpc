@@ -4,11 +4,12 @@
 import { waitError } from '../___testHelpers';
 import { legacyRouterToServerAndClient } from './__legacyRouterToServerAndClient';
 import { waitFor } from '@testing-library/react';
-import { HTTPHeaders, TRPCClientError } from '@trpc/client/src';
-import { httpBatchLink } from '@trpc/client/src';
+import type { HTTPHeaders } from '@trpc/client/src';
+import { httpBatchLink, TRPCClientError } from '@trpc/client/src';
 import * as trpc from '@trpc/server/src';
-import { Maybe, TRPCError } from '@trpc/server/src';
-import { CreateHTTPContextOptions } from '@trpc/server/src/adapters/standalone';
+import type { Maybe } from '@trpc/server/src';
+import { TRPCError } from '@trpc/server/src';
+import type { CreateHTTPContextOptions } from '@trpc/server/src/adapters/standalone';
 import { observable } from '@trpc/server/src/observable';
 import { z } from 'zod';
 
@@ -241,7 +242,7 @@ describe('integration tests', () => {
         }),
       );
       const res = await client.query('postById', 1);
-      expectTypeOf(res).toMatchTypeOf<null | { id: number; title: string }>();
+      expectTypeOf(res).toMatchTypeOf<{ id: number; title: string } | null>();
       expect(res).toEqual({
         id: 1,
         title: 'helloo',

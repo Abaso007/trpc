@@ -1,14 +1,15 @@
-import Link, { Props as LinkProps } from '@docusaurus/Link';
+import type { Props as LinkProps } from '@docusaurus/Link';
+import Link from '@docusaurus/Link';
 import { clsx } from 'clsx';
 import React from 'react';
 
 type AnchorProps = LinkProps & { href: string };
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
-  ({ type: 'submit' } | { onClick: React.MouseEvent<HTMLButtonElement> });
+  ({ onClick: React.MouseEvent<HTMLButtonElement> } | { type: 'submit' });
 
-type Props = (AnchorProps | ButtonProps) & {
+type Props = {
   variant: 'primary' | 'secondary' | 'tertiary';
-};
+} & (AnchorProps | ButtonProps);
 
 export const Button = ({
   variant,
@@ -32,14 +33,14 @@ export const Button = ({
   if ('href' in props) {
     const rel = clsx({ ['noopener']: props.target === '_blank' });
     return (
-      <Link {...props} className={className} rel={props.rel || rel}>
+      <Link {...props} className={className} rel={props.rel ?? rel}>
         {children}
       </Link>
     );
   }
 
   return (
-    <button {...props} className={className} type={props.type || 'button'}>
+    <button {...props} className={className} type={props.type ?? 'button'}>
       {children}
     </button>
   );

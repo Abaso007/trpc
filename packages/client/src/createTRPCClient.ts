@@ -4,16 +4,16 @@ import type {
   inferProcedureOutput,
   inferSubscriptionOutput,
 } from '@trpc/server';
-import { Unsubscribable } from '@trpc/server/observable';
-import { inferTransformedProcedureOutput } from '@trpc/server/shared';
-import { TRPCClientError } from './TRPCClientError';
-import {
+import type { Unsubscribable } from '@trpc/server/observable';
+import type { inferTransformedProcedureOutput } from '@trpc/server/shared';
+import type {
   CreateTRPCClientOptions,
   TRPCRequestOptions,
   TRPCSubscriptionObserver,
-  TRPCUntypedClient,
 } from './internals/TRPCUntypedClient';
-import { TRPCClientRuntime } from './links';
+import { TRPCUntypedClient } from './internals/TRPCUntypedClient';
+import type { TRPCClientRuntime } from './links';
+import type { TRPCClientError } from './TRPCClientError';
 
 /**
  * @deprecated
@@ -49,8 +49,8 @@ export interface TRPCClient<TRouter extends AnyRouter> {
   >(
     path: TPath,
     input: TInput,
-    opts: TRPCRequestOptions &
-      Partial<TRPCSubscriptionObserver<TOutput, TRPCClientError<TRouter>>>,
+    opts: Partial<TRPCSubscriptionObserver<TOutput, TRPCClientError<TRouter>>> &
+      TRPCRequestOptions,
   ): Unsubscribable;
 }
 /**

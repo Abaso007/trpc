@@ -1,4 +1,4 @@
-import { TRPCError, initTRPC } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 export type Context = {
@@ -27,4 +27,7 @@ export const router = t.router({
       message: 'Unexpected error',
     });
   }),
+  exampleMutation: t.procedure
+    .input(z.object({ payload: z.string() }))
+    .mutation(() => 'ok'),
 });

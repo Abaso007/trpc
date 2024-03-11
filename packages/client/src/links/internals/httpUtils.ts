@@ -1,20 +1,27 @@
-import { ProcedureType } from '@trpc/server';
-import { TRPCResponse } from '@trpc/server/rpc';
+import type { ProcedureType } from '@trpc/server';
+import type { TRPCResponse } from '@trpc/server/rpc';
 import { getFetch } from '../../getFetch';
 import { getAbortController } from '../../internals/getAbortController';
-import {
+import type {
   AbortControllerEsque,
+  AbortControllerInstanceEsque,
   FetchEsque,
   RequestInitEsque,
   ResponseEsque,
 } from '../../internals/types';
-import { HTTPHeaders, PromiseAndCancel, TRPCClientRuntime } from '../types';
+import { TRPCClientError } from '../../TRPCClientError';
+import type { TextDecoderEsque } from '../internals/streamingUtils';
+import type {
+  HTTPHeaders,
+  PromiseAndCancel,
+  TRPCClientRuntime,
+} from '../types';
 
 /**
  * @internal
  */
 export interface HTTPLinkBaseOptions {
-  url: string;
+  url: string | URL;
   /**
    * Add ponyfill for fetch
    */
@@ -27,7 +34,7 @@ export interface HTTPLinkBaseOptions {
 
 export interface ResolvedHTTPLinkOptions {
   url: string;
-  fetch: FetchEsque;
+  fetch?: FetchEsque;
   AbortController: AbortControllerEsque | null;
 }
 
@@ -35,8 +42,8 @@ export function resolveHTTPLinkOptions(
   opts: HTTPLinkBaseOptions,
 ): ResolvedHTTPLinkOptions {
   return {
-    url: opts.url,
-    fetch: getFetch(opts.fetch),
+    url: opts.url.toString().replace(/\/$/, ''), // Remove any trailing slashes
+    fetch: opts.fetch,
     AbortController: getAbortController(opts.AbortController),
   };
 }
@@ -60,12 +67,13 @@ export interface HTTPResult {
   json: TRPCResponse;
   meta: {
     response: ResponseEsque;
+    responseJSON?: unknown;
   };
 }
 
 type GetInputOptions = {
   runtime: TRPCClientRuntime;
-} & ({ inputs: unknown[] } | { input: unknown });
+} & ({ input: unknown } | { inputs: unknown[] });
 
 function getInput(opts: GetInputOptions) {
   return 'input' in opts
@@ -75,8 +83,8 @@ function getInput(opts: GetInputOptions) {
       );
 }
 
-export type HTTPBaseRequestOptions = ResolvedHTTPLinkOptions &
-  GetInputOptions & {
+export type HTTPBaseRequestOptions = GetInputOptions &
+  ResolvedHTTPLinkOptions & {
     type: ProcedureType;
     path: string;
   };
@@ -87,6 +95,7 @@ export type GetBody = (
 ) => RequestInitEsque['body'];
 
 export type ContentOptions = {
+  batchModeHeader?: 'stream';
   contentTypeHeader?: string;
   getUrl: GetUrl;
   getBody: GetBody;
@@ -133,55 +142,72 @@ export const jsonHttpRequester: Requester = (opts) => {
   });
 };
 
-export type HTTPRequestOptions = HTTPBaseRequestOptions &
-  ContentOptions & {
+export type HTTPRequestOptions = ContentOptions &
+  HTTPBaseRequestOptions & {
     headers: () => HTTPHeaders | Promise<HTTPHeaders>;
+    TextDecoder?: TextDecoderEsque;
   };
+
+export async function fetchHTTPResponse(
+  opts: HTTPRequestOptions,
+  ac?: AbortControllerInstanceEsque | null,
+) {
+  const url = opts.getUrl(opts);
+  const body = opts.getBody(opts);
+  const { type } = opts;
+  const resolvedHeaders = await opts.headers();
+  /* istanbul ignore if -- @preserve */
+  if (type === 'subscription') {
+    throw new Error('Subscriptions should use wsLink');
+  }
+  const headers = {
+    ...(opts.contentTypeHeader
+      ? { 'content-type': opts.contentTypeHeader }
+      : {}),
+    ...(opts.batchModeHeader
+      ? { 'trpc-batch-mode': opts.batchModeHeader }
+      : {}),
+    ...resolvedHeaders,
+  };
+
+  return getFetch(opts.fetch)(url, {
+    method: METHOD[type],
+    signal: ac?.signal,
+    body: body,
+    headers,
+  });
+}
 
 export function httpRequest(
   opts: HTTPRequestOptions,
 ): PromiseAndCancel<HTTPResult> {
-  const { type } = opts;
   const ac = opts.AbortController ? new opts.AbortController() : null;
+  const meta = {} as HTTPResult['meta'];
 
+  let done = false;
   const promise = new Promise<HTTPResult>((resolve, reject) => {
-    const url = opts.getUrl(opts);
-    const body = opts.getBody(opts);
-
-    const meta = {} as HTTPResult['meta'];
-    Promise.resolve(opts.headers())
-      .then((headers) => {
-        /* istanbul ignore if -- @preserve */
-        if (type === 'subscription') {
-          throw new Error('Subscriptions should use wsLink');
-        }
-
-        return opts.fetch(url, {
-          method: METHOD[type],
-          signal: ac?.signal,
-          body: body,
-          headers: {
-            ...(opts.contentTypeHeader
-              ? { 'content-type': opts.contentTypeHeader }
-              : {}),
-            ...headers,
-          },
-        });
-      })
+    fetchHTTPResponse(opts, ac)
       .then((_res) => {
         meta.response = _res;
+        done = true;
         return _res.json();
       })
       .then((json) => {
+        meta.responseJSON = json;
         resolve({
           json: json as TRPCResponse,
           meta,
         });
       })
-      .catch(reject);
+      .catch((err) => {
+        done = true;
+        reject(TRPCClientError.from(err, { meta }));
+      });
   });
   const cancel = () => {
-    ac?.abort();
+    if (!done) {
+      ac?.abort();
+    }
   };
   return { promise, cancel };
 }

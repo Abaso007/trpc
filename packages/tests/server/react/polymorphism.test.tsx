@@ -2,10 +2,10 @@
   It's common to have a data interface which is used across multiple routes in an API,
   for instance a shared CSV Export system which can be applied to multiple entities in an application.
 
-  By default this can present a challenge in tRPC clients, because the @trpc/react-query package 
+  By default this can present a challenge in tRPC clients, because the @trpc/react-query package
   produces router interfaces which are not always considered structurally compatible by typescript.
 
-  The polymorphism types can be used to generate abstract types which routers sharing a common 
+  The polymorphism types can be used to generate abstract types which routers sharing a common
   interface are compatible with, and allow you to pass around deep router paths to generic components with ease.
 */
 import { routerToServerAndClientNew } from '../___testHelpers';
@@ -13,10 +13,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTRPCReact } from '@trpc/react-query';
-import { InferQueryLikeData } from '@trpc/react-query/shared';
-import { initTRPC } from '@trpc/server';
+import type { InferQueryLikeData, QueryLike } from '@trpc/react-query/shared';
+import { AnyProcedure, initTRPC } from '@trpc/server';
 import { konn } from 'konn';
-import React, { ReactNode, useState } from 'react';
+import type { ReactNode } from 'react';
+import React, { useState } from 'react';
 import { z } from 'zod';
 /**
  * We define a router factory which can be used many times.
@@ -147,9 +148,9 @@ describe('polymorphism', () => {
        * and pass the specific backend functionality which is needed need
        */
       function IssuesExportPage() {
-        const utils = trpc.useContext();
+        const utils = trpc.useUtils();
 
-        const [currentExport, setCurrentExport] = useState<null | number>(null);
+        const [currentExport, setCurrentExport] = useState<number | null>(null);
 
         return (
           <>
@@ -204,9 +205,9 @@ describe('polymorphism', () => {
       const { trpc } = ctx;
 
       function DiscussionsExportPage() {
-        const utils = trpc.useContext();
+        const utils = trpc.useUtils();
 
-        const [currentExport, setCurrentExport] = useState<null | number>(null);
+        const [currentExport, setCurrentExport] = useState<number | null>(null);
 
         return (
           <>
@@ -267,9 +268,9 @@ describe('polymorphism', () => {
        * but also extend types and functionality
        */
       function PullRequestsExportPage() {
-        const utils = trpc.useContext();
+        const utils = trpc.useUtils();
 
-        const [currentExport, setCurrentExport] = useState<null | number>(null);
+        const [currentExport, setCurrentExport] = useState<number | null>(null);
 
         return (
           <>
@@ -458,7 +459,7 @@ function RefreshExportsListButton({
   );
 }
 
-type ExportStatusProps<TStatus extends Factory.ExportRouteLike['status']> = {
+type ExportStatusProps<TStatus extends QueryLike<any>> = {
   status: TStatus;
   renderAdditionalFields?: (data: InferQueryLikeData<TStatus>) => ReactNode;
   currentExport: number | null;
@@ -481,7 +482,7 @@ function ExportStatus<TStatus extends Factory.ExportRouteLike['status']>({
     <p>
       Last Export: `{exportStatus.data?.name}` (
       {exportStatus.data.downloadUri ? 'Ready!' : 'Working'})
-      {renderAdditionalFields?.(exportStatus.data as any)}
+      {renderAdditionalFields?.(exportStatus.data as unknown as any)}
     </p>
   );
 }

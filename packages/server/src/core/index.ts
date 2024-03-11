@@ -4,8 +4,10 @@ export type {
   ProcedureRouterRecord,
   CreateRouterInner,
   Router,
+  RouterCaller,
+  AnyRouterDef,
 } from './router';
-export { callProcedure } from './router';
+export { callProcedure, createCallerFactory } from './router';
 export type {
   Procedure,
   AnyProcedure,
@@ -17,7 +19,11 @@ export type {
   ProcedureOptions,
 } from './procedure';
 export type { inferParser } from './parser';
-export { createInputMiddleware, createOutputMiddleware } from './middleware';
+export {
+  createInputMiddleware,
+  createOutputMiddleware,
+  experimental_standaloneMiddleware,
+} from './middleware';
 export type { MiddlewareFunction, MiddlewareBuilder } from './middleware';
 export { initTRPC } from './initTRPC';
 export * from './types';

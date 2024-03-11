@@ -1,13 +1,11 @@
 import {
-  TRPCClientError,
   createTRPCProxyClient,
   httpBatchLink,
+  TRPCClientError,
 } from '@trpc/client/src';
-import { TRPCError, initTRPC } from '@trpc/server';
-import {
-  CreateHTTPHandlerOptions,
-  createHTTPServer,
-} from '@trpc/server/src/adapters/standalone';
+import { initTRPC, TRPCError } from '@trpc/server';
+import type { CreateHTTPHandlerOptions } from '@trpc/server/src/adapters/standalone';
+import { createHTTPServer } from '@trpc/server/src/adapters/standalone';
 import fetch from 'node-fetch';
 import { z } from 'zod';
 

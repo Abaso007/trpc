@@ -1,30 +1,34 @@
-import {
+import type { IncomingMessage } from 'http';
+import type {
   TRPCWebSocketClient,
   WebSocketClientOptions,
+} from '@trpc/client/src';
+import {
   createTRPCClient,
   createTRPCClientProxy,
   createWSClient,
   httpBatchLink,
 } from '@trpc/client/src';
-import { WithTRPCConfig } from '@trpc/next/src';
-import { OnErrorFunction } from '@trpc/server/internals/types';
-import { AnyRouter as AnyNewRouter } from '@trpc/server/src';
-import {
-  CreateHTTPHandlerOptions,
-  createHTTPServer,
-} from '@trpc/server/src/adapters/standalone';
-import {
-  WSSHandlerOptions,
-  applyWSSHandler,
-} from '@trpc/server/src/adapters/ws';
-import { IncomingMessage } from 'http';
+import type { WithTRPCConfig } from '@trpc/next/src';
+import type { OnErrorFunction } from '@trpc/server/internals/types';
+import type { AnyRouter as AnyNewRouter } from '@trpc/server/src';
+import type { CreateHTTPHandlerOptions } from '@trpc/server/src/adapters/standalone';
+import { createHTTPServer } from '@trpc/server/src/adapters/standalone';
+import type { WSSHandlerOptions } from '@trpc/server/src/adapters/ws';
+import { applyWSSHandler } from '@trpc/server/src/adapters/ws';
 import fetch from 'node-fetch';
-import ws from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import './___packages';
 
 // This is a hack because the `server.close()` times out otherwise ¯\_(ツ)_/¯
 globalThis.fetch = fetch as any;
-globalThis.WebSocket = ws as any;
+globalThis.WebSocket = WebSocket as any;
+
+export type CreateClientCallback = (opts: {
+  httpUrl: string;
+  wssUrl: string;
+  wsClient: TRPCWebSocketClient;
+}) => Partial<WithTRPCConfig<AnyNewRouter>>;
 
 export function routerToServerAndClientNew<TRouter extends AnyNewRouter>(
   router: TRouter,
@@ -32,13 +36,7 @@ export function routerToServerAndClientNew<TRouter extends AnyNewRouter>(
     server?: Partial<CreateHTTPHandlerOptions<TRouter>>;
     wssServer?: Partial<WSSHandlerOptions<TRouter>>;
     wsClient?: Partial<WebSocketClientOptions>;
-    client?:
-      | Partial<WithTRPCConfig<TRouter>>
-      | ((opts: {
-          httpUrl: string;
-          wssUrl: string;
-          wsClient: TRPCWebSocketClient;
-        }) => Partial<WithTRPCConfig<AnyNewRouter>>);
+    client?: Partial<WithTRPCConfig<TRouter>> | CreateClientCallback;
   },
 ) {
   // http
@@ -59,7 +57,7 @@ export function routerToServerAndClientNew<TRouter extends AnyNewRouter>(
   const httpUrl = `http://localhost:${httpPort}`;
 
   // wss
-  const wss = new ws.Server({ port: 0 });
+  const wss = new WebSocketServer({ port: 0 });
   const wssPort = (wss.address() as any).port as number;
   const applyWSSHandlerOpts: WSSHandlerOptions<TRouter> = {
     wss,
@@ -94,7 +92,9 @@ export function routerToServerAndClientNew<TRouter extends AnyNewRouter>(
       await Promise.all([
         new Promise((resolve) => httpServer.server.close(resolve)),
         new Promise((resolve) => {
-          wss.clients.forEach((ws) => ws.close());
+          wss.clients.forEach((ws) => {
+            ws.close();
+          });
           wss.close(resolve);
         }),
       ]);
@@ -122,7 +122,7 @@ export async function waitError<TError extends Error = Error>(
   /**
    * Function callback or promise that you expect will throw
    */
-  fnOrPromise: (() => Promise<unknown> | unknown) | Promise<unknown>,
+  fnOrPromise: Promise<unknown> | (() => unknown),
   /**
    * Force error constructor to be of specific type
    * @default Error
@@ -145,7 +145,7 @@ export async function waitError<TError extends Error = Error>(
   throw new Error('Function did not throw');
 }
 
-export const ignoreErrors = async (fn: () => Promise<unknown> | unknown) => {
+export const ignoreErrors = async (fn: () => unknown) => {
   try {
     await fn();
   } catch {

@@ -1,3 +1,5 @@
+import type { NodeOnDiskFile } from './fileUploadHandler';
+
 /**
  * @see https://github.com/remix-run/remix/blob/0bcb4a304dd2f08f6032c3bf0c3aa7eb5b976901/packages/remix-server-runtime/formData.ts
  */
@@ -9,8 +11,8 @@ export type UploadHandlerPart = {
 };
 
 export type UploadHandler = (
-  part: UploadHandlerPart,
-) => Promise<File | string | null | undefined>;
+  part: Required<UploadHandlerPart>,
+) => Promise<File | NodeOnDiskFile | null | undefined>;
 
 export function composeUploadHandlers(
   ...handlers: UploadHandler[]
@@ -33,6 +35,12 @@ export class MaxPartSizeExceededError extends Error {
   }
 }
 
+export class MaxBodySizeExceededError extends Error {
+  constructor(public maxBytes: number) {
+    super(`Body exceeded upload size of ${maxBytes} bytes.`);
+  }
+}
+
 export type MemoryUploadHandlerFilterArgs = {
   filename?: string;
   contentType: string;
@@ -51,7 +59,7 @@ export type MemoryUploadHandlerOptions = {
    * @param mimetype
    * @param encoding
    */
-  filter?(args: MemoryUploadHandlerFilterArgs): boolean | Promise<boolean>;
+  filter?(args: MemoryUploadHandlerFilterArgs): Promise<boolean> | boolean;
 };
 
 /**
@@ -76,10 +84,6 @@ export function createMemoryUploadHandler({
       chunks.push(chunk);
     }
 
-    if (typeof filename === 'string') {
-      return new File(chunks, filename, { type: contentType });
-    }
-
-    return await new Blob(chunks, { type: contentType }).text();
+    return new File(chunks, filename, { type: contentType });
   };
 }

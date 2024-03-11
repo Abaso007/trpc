@@ -1,16 +1,16 @@
 import { TRPCError } from '../error/TRPCError';
-import { getCauseFromUnknown } from '../error/utils';
-import { Simplify } from '../types';
-import { AnyRootConfig } from './internals/config';
-import { ParseFn } from './internals/getParseFn';
-import { ProcedureBuilderMiddleware } from './internals/procedureBuilder';
-import {
-  DefaultValue as FallbackValue,
+import type { Simplify } from '../types';
+import type { AnyRootConfig, RootConfig } from './internals/config';
+import type { ParseFn } from './internals/getParseFn';
+import type { ProcedureBuilderMiddleware } from './internals/procedureBuilder';
+import type {
+  DefaultValue,
   MiddlewareMarker,
   Overwrite,
+  UnsetMarker,
 } from './internals/utils';
-import { ProcedureParams } from './procedure';
-import { ProcedureType } from './types';
+import type { ProcedureParams } from './procedure';
+import type { ProcedureType } from './types';
 
 /**
  * @internal
@@ -46,8 +46,8 @@ interface MiddlewareErrorResult<_TParams extends ProcedureParams>
  * @internal
  */
 export type MiddlewareResult<TParams extends ProcedureParams> =
-  | MiddlewareOKResult<TParams>
-  | MiddlewareErrorResult<TParams>;
+  | MiddlewareErrorResult<TParams>
+  | MiddlewareOKResult<TParams>;
 
 /**
  * @internal
@@ -64,10 +64,10 @@ export interface MiddlewareBuilder<
       _config: TRoot['_config'];
       _meta: TRoot['_meta'];
       _ctx_out: Overwrite<TRoot['_ctx_out'], TNewParams['_ctx_out']>;
-      _input_in: FallbackValue<TRoot['_input_in'], TNewParams['_input_in']>;
-      _input_out: FallbackValue<TRoot['_input_out'], TNewParams['_input_out']>;
-      _output_in: FallbackValue<TRoot['_output_in'], TNewParams['_output_in']>;
-      _output_out: FallbackValue<
+      _input_in: DefaultValue<TRoot['_input_in'], TNewParams['_input_in']>;
+      _input_out: DefaultValue<TRoot['_input_out'], TNewParams['_input_out']>;
+      _output_in: DefaultValue<TRoot['_output_in'], TNewParams['_output_in']>;
+      _output_out: DefaultValue<
         TRoot['_output_out'],
         TNewParams['_output_out']
       >;
@@ -102,21 +102,25 @@ type CreateMiddlewareReturnInput<
     _config: TPrev['_config'];
     _meta: TPrev['_meta'];
     _ctx_out: Overwrite<TPrev['_ctx_out'], TNext['_ctx_out']>;
-    _input_in: FallbackValue<TNext['_input_in'], TPrev['_input_in']>;
-    _input_out: FallbackValue<TNext['_input_out'], TPrev['_input_out']>;
-    _output_in: FallbackValue<TNext['_output_in'], TPrev['_output_in']>;
-    _output_out: FallbackValue<TNext['_output_out'], TPrev['_output_out']>;
+    _input_in: DefaultValue<TNext['_input_in'], TPrev['_input_in']>;
+    _input_out: DefaultValue<TNext['_input_out'], TPrev['_input_out']>;
+    _output_in: DefaultValue<TNext['_output_in'], TPrev['_output_in']>;
+    _output_out: DefaultValue<TNext['_output_out'], TPrev['_output_out']>;
   }
 >;
 
 /**
  * @internal
  */
-type deriveParamsFromConfig<TConfig extends AnyRootConfig> = {
+type deriveParamsFromConfig<
+  TConfig extends AnyRootConfig,
+  TInputIn = unknown,
+> = {
   _config: TConfig;
-  _ctx_out: TConfig['$types']['ctx'];
-  _input_out: unknown;
-  _input_in: unknown;
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  _ctx_out: {};
+  _input_out: UnsetMarker;
+  _input_in: TInputIn;
   _output_in: unknown;
   _output_out: unknown;
   _meta: TConfig['$types']['meta'];
@@ -129,10 +133,12 @@ export type MiddlewareFunction<
   TParamsAfter extends ProcedureParams,
 > = {
   (opts: {
-    ctx: Simplify<TParams['_ctx_out']>;
+    ctx: Simplify<
+      Overwrite<TParams['_config']['$types']['ctx'], TParams['_ctx_out']>
+    >;
     type: ProcedureType;
     path: string;
-    input: TParams['_input_out'];
+    input: TParams['_input_in'];
     rawInput: unknown;
     meta: TParams['_meta'] | undefined;
     next: {
@@ -157,10 +163,13 @@ export type MiddlewareFunction<
 /**
  * @internal
  */
-export function createMiddlewareFactory<TConfig extends AnyRootConfig>() {
+export function createMiddlewareFactory<
+  TConfig extends AnyRootConfig,
+  TInputIn = unknown,
+>() {
   function createMiddlewareInner<TNewParams extends ProcedureParams>(
     middlewares: MiddlewareFunction<any, any>[],
-  ): MiddlewareBuilder<deriveParamsFromConfig<TConfig>, TNewParams> {
+  ): MiddlewareBuilder<deriveParamsFromConfig<TConfig, TInputIn>, TNewParams> {
     return {
       _middlewares: middlewares,
       unstable_pipe(middlewareBuilderOrFn) {
@@ -178,13 +187,34 @@ export function createMiddlewareFactory<TConfig extends AnyRootConfig>() {
   }
 
   function createMiddleware<TNewParams extends ProcedureParams>(
-    fn: MiddlewareFunction<deriveParamsFromConfig<TConfig>, TNewParams>,
-  ): MiddlewareBuilder<deriveParamsFromConfig<TConfig>, TNewParams> {
+    fn: MiddlewareFunction<
+      deriveParamsFromConfig<TConfig, TInputIn>,
+      TNewParams
+    >,
+  ): MiddlewareBuilder<deriveParamsFromConfig<TConfig, TInputIn>, TNewParams> {
     return createMiddlewareInner([fn]);
   }
 
   return createMiddleware;
 }
+
+export const experimental_standaloneMiddleware = <
+  TCtx extends {
+    ctx?: object;
+    meta?: object;
+    input?: unknown;
+  },
+>() => ({
+  create: createMiddlewareFactory<
+    RootConfig<{
+      ctx: TCtx extends { ctx: infer T extends object } ? T : object;
+      meta: TCtx extends { meta: infer T extends object } ? T : object;
+      errorShape: object;
+      transformer: object;
+    }>,
+    TCtx extends { input: infer T } ? T : unknown
+  >(),
+});
 
 function isPlainObject(obj: unknown) {
   return obj && typeof obj === 'object' && !Array.isArray(obj);
@@ -206,7 +236,7 @@ export function createInputMiddleware<TInput>(parse: ParseFn<TInput>) {
     } catch (cause) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
-        cause: getCauseFromUnknown(cause),
+        cause,
       });
     }
 
@@ -246,7 +276,7 @@ export function createOutputMiddleware<TOutput>(parse: ParseFn<TOutput>) {
       throw new TRPCError({
         message: 'Output validation failed',
         code: 'INTERNAL_SERVER_ERROR',
-        cause: getCauseFromUnknown(cause),
+        cause,
       });
     }
   };

@@ -30,14 +30,22 @@ In another terminal, you can for instance navigate to `examples/next-prisma-star
 
 ### Testing
 
-> Note: you will want to have `pnpm dev` running in parallel in another terminal
+Open one terminal and run:
 
 ```bash
-# in project root directory
+pnpm dev
+```
+
+In a second terminal, you can run the tests in watch mode using
+
+```bash
 pnpm test-watch
 
 # example if you want to test a specific test file:
 pnpm test-watch react
+
+# run only a regression test while fixing a bug
+pnpm test-watch 3085
 ```
 
 Testing is currently coalesced in [./packages/tests](./packages/tests); we import the different libs from here, this makes it easier for us to do integration testing + getting test coverage on the whole codebase.
@@ -47,6 +55,10 @@ Testing is currently coalesced in [./packages/tests](./packages/tests); we impor
 ```bash
 pnpm lint-fix
 ```
+
+### Troubleshooting
+
+If you get any cryptic errors you can usually get past them by doing `pnpm clean && pnpm install`; if this doesn't work, feel free to open an issue.
 
 ### Documentation
 
@@ -70,7 +82,7 @@ The most complex types are also in this area because we must keep track of the c
 
 #### Handling a Request and Forming a Response
 
-The core implementation for HTTP handling is contained in [`resolveHTTPResponse`](packages/server/src/http/resolveHTTPResponse.ts) where requests are handled and an object representing a response is created. This function deals with handling different methods (`query` and `mutation` have different specs), batching, etc. so it is an excellent place to get an overview of the complete process of handling a request and forming a response. If you want to learn more about the specification that we implement, read [this docs page](https://trpc.io/docs/rpc).
+The core implementation for HTTP handling is contained in [`resolveHTTPResponse`](packages/server/src/http/resolveHTTPResponse.ts) where requests are handled and an object representing a response is created. This function deals with handling different methods (`query` and `mutation` have different specs), batching, streaming, etc. so it is an excellent place to get an overview of the complete process of handling a request and forming a response. If you want to learn more about the specification that we implement, read [this docs page](https://trpc.io/docs/rpc).
 
 #### Adapting Requests and Responses
 
@@ -100,4 +112,4 @@ Sometimes it can be confusing to determine if an issue or feature is React Query
 
 ### `@trpc/next`
 
-This is where SSR magic for Next.js happens. If SSR is enabled in the config, all `@trpc/react-query` queries are fetched on the server using a [prepass render](https://github.com/FormidableLabs/react-ssr-prepass) of the component tree. We wrap [`getInitialProps`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props) to hook into the response process and perform a prepass render of the app. This package is subject to change in the future as Next.js improves their page and routing system.
+This is where SSR magic for Next.js happens. If SSR is enabled in the config, all `@trpc/react-query` queries are fetched on the server using a prepass render of the component tree. We wrap [`getInitialProps`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props) to hook into the response process and perform a prepass render of the app. This package is subject to change in the future as Next.js improves their page and routing system.

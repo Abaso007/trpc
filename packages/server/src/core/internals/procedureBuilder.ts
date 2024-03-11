@@ -1,14 +1,13 @@
-import { TRPCError, getTRPCErrorFromUnknown } from '../../error/TRPCError';
-import { MaybePromise, Simplify } from '../../types';
-import {
+import { getTRPCErrorFromUnknown, TRPCError } from '../../error/TRPCError';
+import type { MaybePromise, Simplify } from '../../types';
+import type {
   MiddlewareBuilder,
   MiddlewareFunction,
   MiddlewareResult,
-  createInputMiddleware,
-  createOutputMiddleware,
 } from '../middleware';
-import { Parser, inferParser } from '../parser';
-import {
+import { createInputMiddleware, createOutputMiddleware } from '../middleware';
+import type { inferParser, Parser } from '../parser';
+import type {
   AnyMutationProcedure,
   AnyProcedure,
   AnyQueryProcedure,
@@ -16,18 +15,18 @@ import {
   Procedure,
   ProcedureParams,
 } from '../procedure';
-import { ProcedureType } from '../types';
-import { AnyRootConfig } from './config';
+import type { ProcedureType } from '../types';
+import type { AnyRootConfig } from './config';
 import { getParseFn } from './getParseFn';
 import { mergeWithoutOverrides } from './mergeWithoutOverrides';
-import {
-  DefaultValue as FallbackValue,
+import type {
+  DefaultValue,
   Overwrite,
   OverwriteKnown,
   ResolveOptions,
   UnsetMarker,
-  middlewareMarker,
 } from './utils';
+import { middlewareMarker } from './utils';
 
 type CreateProcedureReturnInput<
   TPrev extends ProcedureParams,
@@ -36,10 +35,12 @@ type CreateProcedureReturnInput<
   _config: TPrev['_config'];
   _meta: TPrev['_meta'];
   _ctx_out: Overwrite<TPrev['_ctx_out'], TNext['_ctx_out']>;
-  _input_in: FallbackValue<TNext['_input_in'], TPrev['_input_in']>;
-  _input_out: FallbackValue<TNext['_input_out'], TPrev['_input_out']>;
-  _output_in: FallbackValue<TNext['_output_in'], TPrev['_output_in']>;
-  _output_out: FallbackValue<TNext['_output_out'], TPrev['_output_out']>;
+  _input_in: TPrev['_input_in'];
+  _input_out: UnsetMarker extends TNext['_input_out']
+    ? TPrev['_input_out']
+    : Overwrite<TPrev['_input_out'], TNext['_input_out']>;
+  _output_in: DefaultValue<TNext['_output_in'], TPrev['_output_in']>;
+  _output_out: DefaultValue<TNext['_output_out'], TPrev['_output_out']>;
 }>;
 
 /**
@@ -154,7 +155,7 @@ export interface ProcedureBuilder<TParams extends ProcedureParams> {
   query<$Output>(
     resolver: (
       opts: ResolveOptions<TParams>,
-    ) => MaybePromise<FallbackValue<TParams['_output_in'], $Output>>,
+    ) => MaybePromise<DefaultValue<TParams['_output_in'], $Output>>,
   ): BuildProcedure<'query', TParams, $Output>;
 
   /**
@@ -163,7 +164,7 @@ export interface ProcedureBuilder<TParams extends ProcedureParams> {
   mutation<$Output>(
     resolver: (
       opts: ResolveOptions<TParams>,
-    ) => MaybePromise<FallbackValue<TParams['_output_in'], $Output>>,
+    ) => MaybePromise<DefaultValue<TParams['_output_in'], $Output>>,
   ): BuildProcedure<'mutation', TParams, $Output>;
 
   /**
@@ -172,7 +173,7 @@ export interface ProcedureBuilder<TParams extends ProcedureParams> {
   subscription<$Output>(
     resolver: (
       opts: ResolveOptions<TParams>,
-    ) => MaybePromise<FallbackValue<TParams['_output_in'], $Output>>,
+    ) => MaybePromise<DefaultValue<TParams['_output_in'], $Output>>,
   ): BuildProcedure<'subscription', TParams, $Output>;
   /**
    * @internal
@@ -256,7 +257,7 @@ export function createBuilder<TConfig extends AnyRootConfig>(
           : [middlewareBuilderOrFn];
 
       return createNewBuilder(_def, {
-        middlewares,
+        middlewares: middlewares as ProcedureBuilderMiddleware[],
       }) as AnyProcedureBuilder;
     },
     query(resolver) {
@@ -314,14 +315,8 @@ export interface ProcedureCallOptions {
 }
 
 const codeblock = `
-If you want to call this function on the server, you do the following:
 This is a client-only function.
-
-const caller = appRouter.createCaller({
-  /* ... your context */
-});
-
-const result = await caller.call('myProcedure', input);
+If you want to call this function on the server, see https://trpc.io/docs/server/server-side-calls
 `.trim();
 
 function createProcedureCaller(_def: AnyProcedureBuilderDef): AnyProcedure {

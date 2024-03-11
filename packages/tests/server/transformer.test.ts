@@ -1,21 +1,18 @@
 import { routerToServerAndClientNew, waitError } from './___testHelpers';
 import {
-  TRPCClientError,
   createTRPCProxyClient,
   createWSClient,
   httpBatchLink,
   httpLink,
+  TRPCClientError,
   wsLink,
 } from '@trpc/client';
-import {
-  CombinedDataTransformer,
-  DataTransformer,
-  TRPCError,
-  initTRPC,
-} from '@trpc/server';
+import type { CombinedDataTransformer, DataTransformer } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
 import { observable } from '@trpc/server/src/observable';
 import { uneval } from 'devalue';
 import superjson from 'superjson';
+import { createTson, tsonDate } from 'tupleson';
 import { z } from 'zod';
 
 test('superjson up and down', async () => {
@@ -543,4 +540,37 @@ describe('required transformers', () => {
       transformer,
     });
   });
+});
+
+test('tupleson', async () => {
+  const transformer = createTson({
+    types: [tsonDate],
+    nonce: () => Math.random() + '',
+  });
+  const date = new Date();
+  const fn = vi.fn();
+
+  const t = initTRPC.create({ transformer });
+
+  const router = t.router({
+    hello: t.procedure.input(z.date()).query(({ input }) => {
+      fn(input);
+      return input;
+    }),
+  });
+
+  const { close, proxy } = routerToServerAndClientNew(router, {
+    client({ httpUrl }) {
+      return {
+        transformer,
+        links: [httpBatchLink({ url: httpUrl })],
+      };
+    },
+  });
+
+  const res = await proxy.hello.query(date);
+  expect(res.getTime()).toBe(date.getTime());
+  expect((fn.mock.calls[0]![0]! as Date).getTime()).toBe(date.getTime());
+
+  await close();
 });

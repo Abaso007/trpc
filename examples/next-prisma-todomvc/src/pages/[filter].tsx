@@ -1,7 +1,7 @@
 import { useIsMutating } from '@tanstack/react-query';
-import { inferProcedureOutput } from '@trpc/server';
+import type { inferProcedureOutput } from '@trpc/server';
 import clsx from 'clsx';
-import {
+import type {
   GetStaticPaths,
   GetStaticPropsContext,
   InferGetStaticPropsType,
@@ -14,7 +14,7 @@ import 'todomvc-app-css/index.css';
 import 'todomvc-common/base.css';
 import { useLocale } from '~/utils/use-locale';
 import { InfoFooter } from '../components/footer';
-import { AppRouter } from '../server/routers/_app';
+import type { AppRouter } from '../server/routers/_app';
 import { ssgInit } from '../server/ssg-init';
 import { trpc } from '../utils/trpc';
 import { useClickOutside } from '../utils/use-click-outside';
@@ -28,7 +28,7 @@ function ListItem(props: { task: Task }) {
   const wrapperRef = useRef(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const utils = trpc.useContext();
+  const utils = trpc.useUtils();
   const [text, setText] = useState(task.text);
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export default function TodosPage(props: PageProps) {
     staleTime: 3000,
   });
 
-  const utils = trpc.useContext();
+  const utils = trpc.useUtils();
   const addTask = trpc.todo.add.useMutation({
     async onMutate({ text }) {
       /**

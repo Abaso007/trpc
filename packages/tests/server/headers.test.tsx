@@ -4,11 +4,12 @@ import {
   httpBatchLink,
   httpLink,
 } from '@trpc/client/src';
-import { Dict, initTRPC } from '@trpc/server/src';
+import type { Dict } from '@trpc/server/src';
+import { initTRPC } from '@trpc/server/src';
 
 describe('pass headers', () => {
   type Context = {
-    headers: Dict<string | string[]>;
+    headers: Dict<string[] | string>;
   };
 
   const t = initTRPC.context<Context>().create();
@@ -89,7 +90,7 @@ Object {
 
   test('custom headers with context using httpBatchLink', async () => {
     type LinkContext = {
-      headers: Dict<string | string[]>;
+      headers: Dict<string[] | string>;
     };
     const client = createTRPCProxyClient<AppRouter>({
       links: [
@@ -125,7 +126,7 @@ Object {
 
   test('custom headers with context using httpLink', async () => {
     type LinkContext = {
-      headers: Dict<string | string[]>;
+      headers: Dict<string[] | string>;
     };
     const client = createTRPCProxyClient<AppRouter>({
       links: [

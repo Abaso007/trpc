@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+import type { DehydratedState } from '@tanstack/react-query';
 import {
-  DehydratedState,
-  QueryClient,
   useInfiniteQuery as __useInfiniteQuery,
   useMutation as __useMutation,
   useQueries as __useQueries,
@@ -9,32 +8,31 @@ import {
   hashQueryKey,
   useQueryClient,
 } from '@tanstack/react-query';
-import { TRPCClientErrorLike, createTRPCClient } from '@trpc/client';
+import type { TRPCClientErrorLike } from '@trpc/client';
+import { createTRPCClient } from '@trpc/client';
 import type {
   AnyRouter,
-  ProcedureRecord,
   inferHandlerInput,
   inferProcedureClientError,
   inferProcedureInput,
   inferProcedureOutput,
   inferSubscriptionOutput,
+  ProcedureRecord,
 } from '@trpc/server';
-import { inferObservableValue } from '@trpc/server/observable';
-import { inferTransformedProcedureOutput } from '@trpc/server/shared';
+import type { inferObservableValue } from '@trpc/server/observable';
+import type { inferTransformedProcedureOutput } from '@trpc/server/shared';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SSRState, TRPCContext } from '../../../internals/context';
-import { TRPCContextState } from '../../../internals/context';
-import {
-  QueryType,
-  getArrayQueryKey,
-} from '../../../internals/getArrayQueryKey';
+import type { SSRState, TRPCContextState } from '../../../internals/context';
+import { TRPCContext } from '../../../internals/context';
+import type { QueryType } from '../../../internals/getArrayQueryKey';
+import { getArrayQueryKey } from '../../../internals/getArrayQueryKey';
 import { getClientArgs } from '../../../internals/getClientArgs';
 import { useHookResult } from '../../../internals/useHookResult';
-import { TRPCUseQueries } from '../../../internals/useQueries';
+import type { TRPCUseQueries } from '../../../internals/useQueries';
 import { createUseQueriesProxy } from '../../proxy/useQueriesProxy';
-import { CreateTRPCReactOptions, UseMutationOverride } from '../../types';
+import type { CreateTRPCReactOptions, UseMutationOverride } from '../../types';
 import { createRootHooks } from '../createHooksInternal';
-import {
+import type {
   CreateClient,
   TRPCProvider,
   TRPCQueryOptions,
@@ -92,9 +90,7 @@ function __createHooksInternal<
 
   const Context = (config?.context ??
     TRPCContext) as React.Context<ProviderContext>;
-  const ReactQueryContext = config?.reactQueryContext as React.Context<
-    QueryClient | undefined
-  >;
+  const ReactQueryContext = config?.reactQueryContext;
 
   const createClient: CreateClient<TRouter> = (opts) => {
     return createTRPCClient(opts);
@@ -114,7 +110,7 @@ function __createHooksInternal<
           abortOnUnmount,
           queryClient,
           client,
-          ssrContext: ssrContext || null,
+          ssrContext: ssrContext ?? null,
           ssrState,
           fetchQuery: useCallback(
             (pathAndInput, opts) => {
@@ -300,7 +296,7 @@ function __createHooksInternal<
   }
 
   function useQuery<
-    TPath extends keyof TQueryValues & string,
+    TPath extends string & keyof TQueryValues,
     TQueryFnData = TQueryValues[TPath]['output'],
     TData = TQueryValues[TPath]['output'],
   >(
@@ -356,7 +352,7 @@ function __createHooksInternal<
   }
 
   function useMutation<
-    TPath extends keyof TMutationValues & string,
+    TPath extends string & keyof TMutationValues,
     TContext = unknown,
   >(
     path: TPath | [TPath],
@@ -417,7 +413,7 @@ function __createHooksInternal<
    * ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠
    */
   function useSubscription<
-    TPath extends keyof TSubscriptions & string,
+    TPath extends string & keyof TSubscriptions,
     TOutput extends inferSubscriptionOutput<TRouter, TPath>,
   >(
     pathAndInput: [
@@ -433,7 +429,7 @@ function __createHooksInternal<
     const queryKey = hashQueryKey(pathAndInput);
     const { client } = useContext();
 
-    return useEffect(() => {
+    useEffect(() => {
       if (!enabled) {
         return;
       }
@@ -586,6 +582,7 @@ function __createHooksInternal<
     Provider: TRPCProvider,
     createClient,
     useContext,
+    useUtils: useContext,
     useQuery,
     useQueries,
     useMutation,

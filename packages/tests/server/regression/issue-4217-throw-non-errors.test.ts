@@ -1,6 +1,8 @@
 import { routerToServerAndClientNew, waitError } from '../___testHelpers';
-import { TRPCClientError, httpLink } from '@trpc/client';
-import { TRPCError, initTRPC } from '@trpc/server';
+import type { TRPCClientError } from '@trpc/client';
+import { httpLink } from '@trpc/client';
+import type { TRPCError } from '@trpc/server';
+import { initTRPC } from '@trpc/server';
 import { konn } from 'konn';
 
 const ctx = konn()

@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import { routerToServerAndClientNew, waitError } from './___testHelpers';
 import { waitFor } from '@testing-library/react';
+import type { HTTPHeaders } from '@trpc/client/src';
 import {
-  HTTPHeaders,
-  TRPCClientError,
   createTRPCProxyClient,
   createWSClient,
+  httpBatchLink,
+  TRPCClientError,
   wsLink,
 } from '@trpc/client/src';
-import { httpBatchLink } from '@trpc/client/src';
-import { Maybe, TRPCError, initTRPC } from '@trpc/server/src';
-import { CreateHTTPContextOptions } from '@trpc/server/src/adapters/standalone';
+import type { Maybe } from '@trpc/server/src';
+import { initTRPC, TRPCError } from '@trpc/server/src';
+import type { CreateHTTPContextOptions } from '@trpc/server/src/adapters/standalone';
 import { observable } from '@trpc/server/src/observable';
 import { z } from 'zod';
 
@@ -218,7 +219,7 @@ describe('integration tests', () => {
 
       const { close, proxy } = routerToServerAndClientNew(router);
       const res = await proxy.postById.query(1);
-      expectTypeOf(res).toMatchTypeOf<null | { id: number; title: string }>();
+      expectTypeOf(res).toMatchTypeOf<{ id: number; title: string } | null>();
       expect(res).toEqual({
         id: 1,
         title: 'helloo',
@@ -591,4 +592,30 @@ test('regression: JSON.stringify([undefined]) gives [null] causes wrong type to 
   `);
   expect(await proxy.q.query()).toMatchInlineSnapshot(`Object {}`);
   await close();
+});
+
+describe('apply()', () => {
+  test('query without input', async () => {
+    const t = initTRPC.create();
+    const router = t.router({
+      hello: t.procedure.query(() => 'world'),
+    });
+    const { close, proxy } = routerToServerAndClientNew(router);
+    expect(await proxy.hello.query.apply(undefined)).toBe('world');
+    await close();
+  });
+
+  test('query with input', async () => {
+    const t = initTRPC.create();
+    const router = t.router({
+      helloinput: t.procedure
+        .input(z.string())
+        .query(({ input }) => `hello ${input}`),
+    });
+    const { close, proxy } = routerToServerAndClientNew(router);
+    expect(await proxy.helloinput.query.apply(undefined, ['world'])).toBe(
+      'hello world',
+    );
+    await close();
+  });
 });

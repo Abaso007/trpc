@@ -24,13 +24,16 @@ Full documentation for `@trpc/react-query` can be found [here](https://trpc.io/d
 
 ```bash
 # npm
-npm install @trpc/react-query @tanstack/react-query
+npm install @trpc/react-query @tanstack/react-query@4
 
 # Yarn
-yarn add @trpc/react-query @tanstack/react-query
+yarn add @trpc/react-query @tanstack/react-query@4
 
 # pnpm
-pnpm add @trpc/react-query @tanstack/react-query
+pnpm add @trpc/react-query @tanstack/react-query@4
+
+# Bun
+bun add @trpc/react-query @tanstack/react-query@4
 ```
 
 ## Basic Example
@@ -48,9 +51,8 @@ Use the provider to connect to your API.
 
 ```ts
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
-import { useState } from 'react';
 import { trpc } from '~/utils/trpc';
+import React, { useState } from 'react';
 
 export function App() {
   const [queryClient] = useState(() => new QueryClient());

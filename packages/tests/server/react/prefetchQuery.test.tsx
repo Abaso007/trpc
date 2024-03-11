@@ -1,8 +1,8 @@
 import { createQueryClient } from '../__queryClient';
 import { createAppRouter } from './__testHelpers';
 import {
-  QueryClientProvider,
   dehydrate,
+  QueryClientProvider,
   useQueryClient,
 } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
@@ -21,7 +21,7 @@ describe('prefetchQuery()', () => {
     const { trpc, client } = factory;
     function MyComponent() {
       const [state, setState] = useState<string>('nope');
-      const utils = trpc.useContext();
+      const utils = trpc.useUtils();
       const queryClient = useQueryClient();
 
       useEffect(() => {

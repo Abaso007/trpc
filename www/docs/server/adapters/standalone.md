@@ -5,7 +5,7 @@ sidebar_label: Standalone
 slug: /server/adapters/standalone
 ---
 
-tRPC's Standalone Adapter is the simplest way to stand up your application. It's ideal for local development, and for server-based production environments. In essence it's just a wrapper around the standard [Node.js HTTP Server](https://nodejs.org/api/http.html) with the normal options related to tRPC.
+tRPC's Standalone Adapter is the simplest way to get a new project working. It's ideal for local development, and for server-based production environments. In essence it's just a wrapper around the standard [Node.js HTTP Server](https://nodejs.org/api/http.html) with the normal options related to tRPC.
 
 If you have an existing API deployment like [Express](express), [Fastify](fastify), or [Next.js](nextjs), which you want to integrate tRPC into, you should have a look at their respective adapters. Likewise if you have a preference to host on serverless or edge compute, we have adapters like [AWS Lambda](aws-lambda) and [Fetch](fetch) which may fit your needs.
 
@@ -79,7 +79,7 @@ For more information you can look at the [quickstart guide](/docs/quickstart)
 The Standalone adapter runs a simple Node.js HTTP server.
 
 ```ts title='server.ts'
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
+import { initTRPC } from '@trpc/server';
 import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import { appRouter } from './appRouter.ts';
 
@@ -114,7 +114,7 @@ For full information on how to configure this package, [check the docs](https://
 This example just throws open CORS to any request, which is useful for development, but you can and should configure it more strictly in a production environment.
 
 ```ts title='server.ts'
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
+import { initTRPC } from '@trpc/server';
 import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import cors from 'cors';
 
@@ -139,9 +139,9 @@ The `middleware` option will accept any function which resembles a connect/node.
 If `createHTTPServer` isn't enough you can also use the standalone adapter's `createHTTPHandler` function to create your own HTTP Server. For instance:
 
 ```ts title='server.ts'
-import { inferAsyncReturnType, initTRPC } from '@trpc/server';
-import { createHTTPHandler } from '@trpc/server/adapters/standalone';
 import { createServer } from 'http';
+import { initTRPC } from '@trpc/server';
+import { createHTTPHandler } from '@trpc/server/adapters/standalone';
 
 const handler = createHTTPHandler({
   router: appRouter,
@@ -157,7 +157,5 @@ createServer((req, res) => {
    */
 
   handler(req, res);
-});
-
-server.listen(3333);
+}).listen(3333);
 ```

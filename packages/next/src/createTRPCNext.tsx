@@ -1,18 +1,21 @@
 /* istanbul ignore file -- @preserve */
 // We're testing this through E2E-testing
-import {
+import type {
   CreateReactUtilsProxy,
   DecoratedProcedureRecord,
   TRPCUseQueries,
+} from '@trpc/react-query/shared';
+import {
   createHooksInternal,
   createReactProxyDecoration,
   createReactQueryUtilsProxy,
 } from '@trpc/react-query/shared';
-import { AnyRouter, ProtectedIntersection } from '@trpc/server';
+import type { AnyRouter, ProtectedIntersection } from '@trpc/server';
 import { createFlatProxy } from '@trpc/server/shared';
-import { NextPageContext } from 'next/types';
+import type { NextPageContext } from 'next/types';
 import { useMemo } from 'react';
-import { WithTRPCNoSSROptions, WithTRPCSSROptions, withTRPC } from './withTRPC';
+import type { WithTRPCNoSSROptions, WithTRPCSSROptions } from './withTRPC';
+import { withTRPC } from './withTRPC';
 
 /**
  * @internal
@@ -21,7 +24,16 @@ export interface CreateTRPCNextBase<
   TRouter extends AnyRouter,
   TSSRContext extends NextPageContext,
 > {
+  /**
+   * @deprecated renamed to `useUtils` and will be removed in a future tRPC version
+   *
+   * @see https://trpc.io/docs/client/react/useUtils
+   */
   useContext(): CreateReactUtilsProxy<TRouter, TSSRContext>;
+  /**
+   * @see https://trpc.io/docs/client/react/useUtils
+   */
+  useUtils(): CreateReactUtilsProxy<TRouter, TSSRContext>;
   withTRPC: ReturnType<typeof withTRPC<TRouter, TSSRContext>>;
   useQueries: TRPCUseQueries<TRouter>;
 }
@@ -51,9 +63,9 @@ export function createTRPCNext<
   const _withTRPC = withTRPC(opts);
 
   return createFlatProxy((key) => {
-    if (key === 'useContext') {
+    if (key === 'useContext' || key === 'useUtils') {
       return () => {
-        const context = hooks.useContext();
+        const context = hooks.useUtils();
         // create a stable reference of the utils context
         return useMemo(() => {
           return (createReactQueryUtilsProxy as any)(context);

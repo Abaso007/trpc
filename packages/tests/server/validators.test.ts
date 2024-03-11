@@ -1,4 +1,6 @@
-import { routerToServerAndClientNew } from './___testHelpers';
+import { AsyncLocalStorage } from 'async_hooks';
+import { routerToServerAndClientNew, waitError } from './___testHelpers';
+import { wrap } from '@decs/typeschema';
 import * as S from '@effect/schema/Schema';
 import { initTRPC } from '@trpc/server/src';
 import * as arktype from 'arktype';
@@ -6,6 +8,7 @@ import myzod from 'myzod';
 import * as T from 'runtypes';
 import * as $ from 'scale-codec';
 import * as st from 'superstruct';
+import * as v from 'valibot';
 import * as yup from 'yup';
 import { z } from 'zod';
 
@@ -134,6 +137,93 @@ test('zod transform mixed input/output', async () => {
   await close();
 });
 
+test('valibot', async () => {
+  const t = initTRPC.create();
+
+  const router = t.router({
+    num: t.procedure.input(wrap(v.number())).query(({ input }) => {
+      expectTypeOf(input).toBeNumber();
+      return {
+        input,
+      };
+    }),
+  });
+
+  const { close, proxy } = routerToServerAndClientNew(router);
+  const res = await proxy.num.query(123);
+
+  await expect(proxy.num.query('123' as any)).rejects.toMatchInlineSnapshot(
+    '[TRPCClientError: Assertion failed]',
+  );
+  expect(res.input).toBe(123);
+  await close();
+});
+
+test('valibot async', async () => {
+  const t = initTRPC.create();
+  const input = wrap(
+    v.stringAsync([v.customAsync(async (value) => value === 'foo')]),
+  );
+
+  const router = t.router({
+    q: t.procedure.input(input).query(({ input }) => {
+      expectTypeOf(input).toBeString();
+      return {
+        input,
+      };
+    }),
+  });
+
+  const { close, proxy } = routerToServerAndClientNew(router);
+
+  await expect(proxy.q.query('bar')).rejects.toMatchInlineSnapshot(
+    '[TRPCClientError: Assertion failed]',
+  );
+  const res = await proxy.q.query('foo');
+  expect(res).toMatchInlineSnapshot(`
+      Object {
+        "input": "foo",
+      }
+    `);
+  await close();
+});
+
+test('valibot transform mixed input/output', async () => {
+  const t = initTRPC.create();
+  const input = wrap(
+    v.object({
+      length: v.transform(v.string(), (s) => s.length),
+    }),
+  );
+
+  const router = t.router({
+    num: t.procedure.input(input).query(({ input }) => {
+      expectTypeOf(input.length).toBeNumber();
+      return {
+        input,
+      };
+    }),
+  });
+
+  const { close, proxy } = routerToServerAndClientNew(router);
+
+  await expect(proxy.num.query({ length: '123' })).resolves
+    .toMatchInlineSnapshot(`
+            Object {
+              "input": Object {
+                "length": 3,
+              },
+            }
+          `);
+
+  await expect(
+    // @ts-expect-error this should only accept a string
+    proxy.num.query({ length: 123 }),
+  ).rejects.toMatchInlineSnapshot('[TRPCClientError: Assertion failed]');
+
+  await close();
+});
+
 test('superstruct', async () => {
   const t = initTRPC.create();
 
@@ -254,7 +344,7 @@ test('effect schema - [not officially supported]', async () => {
 
   const router = t.router({
     num: t.procedure
-      .input(S.parse(S.struct({ text: S.string })))
+      .input(S.parseSync(S.struct({ text: S.string })))
       .query(({ input }) => {
         expectTypeOf(input).toMatchTypeOf<{ text: string }>();
         return {
@@ -269,9 +359,9 @@ test('effect schema - [not officially supported]', async () => {
 
   // @ts-expect-error this only accepts a `number`
   await expect(proxy.num.query('13')).rejects.toMatchInlineSnapshot(`
-	[TRPCClientError: error(s) found
-	└─ Expected a generic object, actual "13"]
-`);
+    [TRPCClientError: error(s) found
+    └─ Expected <anonymous type literal schema>, actual "13"]
+  `);
   await close();
 });
 
@@ -351,4 +441,75 @@ test('async validator fn', async () => {
   );
   expect(res.input).toBe(123);
   await close();
+});
+
+test('recipe: summon context in input parser', async () => {
+  type Context = {
+    foo: string;
+  };
+  const t = initTRPC.context<Context>().create();
+
+  // <initialize AsyncLocalStorage>
+  const contextStorage = new AsyncLocalStorage<Context>();
+  const getContext = () => {
+    const ctx = contextStorage.getStore();
+    if (!ctx) {
+      throw new Error('No context found');
+    }
+    return ctx;
+  };
+  // </initialize AsyncLocalStorage>
+
+  const procedureWithContext = t.procedure.use((opts) => {
+    // this middleware adds a context that can be fetched by `getContext()`
+    return contextStorage.run(opts.ctx, async () => {
+      return await opts.next();
+    });
+  });
+
+  const router = t.router({
+    proc: procedureWithContext
+      .input((input) => {
+        // this input parser uses the context
+        const ctx = getContext();
+        expect(ctx.foo).toBe('bar');
+
+        return z.string().parse(input);
+      })
+      .query((opts) => {
+        expectTypeOf(opts.input).toBeString();
+        return opts.input;
+      }),
+  });
+
+  const ctx = routerToServerAndClientNew(router, {
+    server: {
+      createContext() {
+        return { foo: 'bar' };
+      },
+    },
+  });
+  const res = await ctx.proxy.proc.query('123');
+
+  expect(res).toMatchInlineSnapshot('"123"');
+
+  const err = await waitError(
+    ctx.proxy.proc.query(
+      // @ts-expect-error this only accepts a `number`
+      123,
+    ),
+  );
+  expect(err).toMatchInlineSnapshot(`
+    [TRPCClientError: [
+      {
+        "code": "invalid_type",
+        "expected": "string",
+        "received": "number",
+        "path": [],
+        "message": "Expected string, received number"
+      }
+    ]]
+  `);
+
+  await ctx.close();
 });

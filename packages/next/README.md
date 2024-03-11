@@ -18,19 +18,22 @@
 
 ## Documentation
 
-Full documentation for `@trpc/next` can be found [here](https://trpc.io/docs/nextjs/introduction)
+Full documentation for `@trpc/next` can be found [here](https://trpc.io/docs/client/nextjs)
 
 ## Installation
 
 ```bash
 # npm
-npm install @trpc/next @trpc/react-query @tanstack/react-query
+npm install @trpc/next @trpc/react-query @tanstack/react-query@4
 
 # Yarn
-yarn add @trpc/next @trpc/react-query @tanstack/react-query
+yarn add @trpc/next @trpc/react-query @tanstack/react-query@4
 
 # pnpm
-pnpm add @trpc/next @trpc/react-query @tanstack/react-query
+pnpm add @trpc/next @trpc/react-query @tanstack/react-query@4
+
+# Bun
+bun add @trpc/next @trpc/react-query @tanstack/react-query@4
 ```
 
 ## Basic Example

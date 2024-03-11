@@ -1,6 +1,6 @@
 import { legacyRouterToServerAndClient } from './__legacyRouterToServerAndClient';
 import * as trpc from '@trpc/server/src';
-import { CreateHTTPContextOptions } from '@trpc/server/src/adapters/standalone';
+import type { CreateHTTPContextOptions } from '@trpc/server/src/adapters/standalone';
 import fetch from 'node-fetch';
 
 test('set custom headers in beforeEnd', async () => {
@@ -23,8 +23,7 @@ test('set custom headers in beforeEnd', async () => {
         onError,
         responseMeta({ ctx, paths, type, errors }) {
           // assuming you have all your public routes with the keyword `public` in them
-          const allPublic =
-            paths && paths.every((path) => path.includes('public'));
+          const allPublic = paths?.every((path) => path.includes('public'));
           // checking that no procedures errored
           const allOk = errors.length === 0;
           // checking we're doing a query request

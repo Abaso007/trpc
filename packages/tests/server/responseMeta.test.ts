@@ -1,6 +1,6 @@
+import type { IncomingMessage, ServerResponse } from 'http';
 import { routerToServerAndClientNew } from './___testHelpers';
 import { initTRPC } from '@trpc/server/src';
-import { IncomingMessage, ServerResponse } from 'http';
 import fetch from 'node-fetch';
 
 test('set custom headers in beforeEnd', async () => {
@@ -26,8 +26,7 @@ test('set custom headers in beforeEnd', async () => {
       onError,
       responseMeta({ ctx, paths, type, errors }) {
         // assuming you have all your public routes with the keyword `public` in them
-        const allPublic =
-          paths && paths.every((path) => path.includes('public'));
+        const allPublic = paths?.every((path) => path.includes('public'));
         // checking that no procedures errored
         const allOk = errors.length === 0;
         // checking we're doing a query request
@@ -73,6 +72,53 @@ Object {
 `);
 
     expect(res.headers.get('cache-control')).toBeNull();
+  }
+
+  await close();
+});
+
+test('cookie headers', async () => {
+  const onError = vi.fn();
+
+  interface Context {
+    req: IncomingMessage;
+    res: ServerResponse<IncomingMessage>;
+  }
+  const t = initTRPC.context<Context>().create();
+
+  const appRouter = t.router({
+    cookieEndpoint: t.procedure.query(() => {
+      return 'cookie endpoint';
+    }),
+  });
+
+  const { close, httpUrl } = routerToServerAndClientNew(appRouter, {
+    server: {
+      onError,
+      responseMeta() {
+        return {
+          headers: {
+            'Set-Cookie': ['a=b', 'b=c'],
+          },
+        };
+      },
+    },
+  });
+
+  {
+    const res = await fetch(`${httpUrl}/cookieEndpoint`);
+
+    expect(res.headers.get('set-cookie')).toMatchInlineSnapshot(`
+"a=b, b=c"
+`);
+
+    expect(await res.json()).toMatchInlineSnapshot(`
+Object {
+  "result": Object {
+    "data": "cookie endpoint",
+  },
+}
+`);
   }
 
   await close();

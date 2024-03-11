@@ -3,7 +3,7 @@ import { createAppRouter } from './__testHelpers';
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryKey } from '@trpc/react-query/src/internals/getArrayQueryKey';
+import type { QueryKey } from '@trpc/react-query/src/internals/getArrayQueryKey';
 import React, { useState } from 'react';
 
 let factory: ReturnType<typeof createAppRouter>;
@@ -94,7 +94,7 @@ describe('invalidateQueries()', () => {
       const postByIdQuery = trpc.postById.useQuery('1', {
         staleTime: Infinity,
       });
-      const utils = trpc.useContext();
+      const utils = trpc.useUtils();
       return (
         <>
           <pre>
@@ -161,7 +161,7 @@ describe('invalidateQueries()', () => {
       const countQuery = trpc.count.useQuery('test', {
         staleTime: Infinity,
       });
-      const utils = trpc.useContext();
+      const utils = trpc.useUtils();
       return (
         <>
           <pre>count:{countQuery.data}</pre>
@@ -260,7 +260,7 @@ describe('invalidateQueries()', () => {
           staleTime: Infinity,
         },
       );
-      const utils = trpc.useContext();
+      const utils = trpc.useUtils();
       return (
         <>
           <pre>mockPostQuery1:{mockPostQuery1.status}</pre>
@@ -320,7 +320,7 @@ describe('invalidateQueries()', () => {
 test('predicate type should be narrowed', () => {
   const { trpc } = factory;
   () => {
-    const utils = trpc.useContext();
+    const utils = trpc.useUtils();
 
     // simple
     utils.postById.invalidate('123', {
@@ -340,7 +340,7 @@ test('predicate type should be narrowed', () => {
           [
             string[],
             {
-              input?: { limit?: number | null };
+              input?: { limit?: number | undefined } | void;
               type: 'infinite';
             }?,
           ]

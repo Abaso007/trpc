@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { createTRPCReact } from '@trpc/react-query';
 import { initTRPC } from '@trpc/server';
 import { konn } from 'konn';
-import React, { ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React from 'react';
 import { z } from 'zod';
 
 describe('mutation override', () => {
@@ -74,7 +75,12 @@ describe('mutation override', () => {
 
       return (
         <>
-          <button onClick={() => mutation.mutate(nonce)} data-testid="add">
+          <button
+            onClick={() => {
+              mutation.mutate(nonce);
+            }}
+            data-testid="add"
+          >
             add
           </button>
           <pre>{JSON.stringify(listQuery.data ?? null, null, 4)}</pre>
@@ -108,7 +114,12 @@ describe('mutation override', () => {
 
       return (
         <>
-          <button onClick={() => mutation.mutate(nonce)} data-testid="add">
+          <button
+            onClick={() => {
+              mutation.mutate(nonce);
+            }}
+            data-testid="add"
+          >
             add
           </button>
           <pre>{JSON.stringify(listQuery.data ?? null, null, 4)}</pre>

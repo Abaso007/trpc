@@ -8,7 +8,8 @@
 /**
  * @see https://github.com/remix-run/remix/blob/0bcb4a304dd2f08f6032c3bf0c3aa7eb5b976901/packages/remix-server-runtime/upload/memoryUploadHandler.ts
  */
-import { MaxPartSizeExceededError, UploadHandler } from './uploadHandler';
+import type { UploadHandler } from './uploadHandler';
+import { MaxPartSizeExceededError } from './uploadHandler';
 
 export type MemoryUploadHandlerFilterArgs = {
   filename?: string;
@@ -28,7 +29,7 @@ export type MemoryUploadHandlerOptions = {
    * @param mimetype
    * @param encoding
    */
-  filter?(args: MemoryUploadHandlerFilterArgs): boolean | Promise<boolean>;
+  filter?(args: MemoryUploadHandlerFilterArgs): Promise<boolean> | boolean;
 };
 
 export function createMemoryUploadHandler({
@@ -50,10 +51,6 @@ export function createMemoryUploadHandler({
       chunks.push(chunk);
     }
 
-    if (typeof filename === 'string') {
-      return new File(chunks, filename, { type: contentType });
-    }
-
-    return await new Blob(chunks, { type: contentType }).text();
+    return new File(chunks, filename, { type: contentType });
   };
 }

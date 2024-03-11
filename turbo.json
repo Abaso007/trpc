@@ -1,31 +1,32 @@
 {
   "$schema": "https://turborepo.org/schema.json",
+  "globalDependencies": [
+    ".eslintrc.js",
+    "tsconfig.json",
+    "scripts/entrypoints.ts",
+    "scripts/getRollupConfig.ts"
+  ],
   "pipeline": {
-    "codegen:entrypoints": {
+    "codegen-entrypoints": {},
+    "codegen-tests": {
       "outputs": [
-        "links/**",
-        "shared/**",
-        "server/**",
-        "ssg/**",
-        "adapters/**",
-        "http/**",
-        "observable/**",
-        "rpc/**",
-        "subscription/**"
+        "server/__generated__/bigBoi/**",
+        "server/__generated__/bigLegacyRouter/**"
       ]
-    },
-    "codegen:bigBoi": {
-      "outputs": ["server/__generated__/bigBoi/**"]
-    },
-    "codegen:bigLegacyRouter": {
-      "outputs": ["server/__generated__/bigLegacyRouter/**"]
     },
     "prebuild": {
       "cache": false
     },
+    "ts-watch": {},
     "build": {
-      "dependsOn": ["^build", "codegen:entrypoints", "prebuild"],
-      "outputs": [".next/**", "dist/**", "build/**", "docs/typedoc/**"]
+      "dependsOn": ["^build", "codegen-entrypoints", "prebuild"],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        "build/**",
+        "docs/typedoc/**"
+      ]
     },
     "@examples/minimal-react#build": {
       "outputs": ["client/dist/**", "server/dist/**"]
@@ -43,11 +44,11 @@
       "cache": false
     },
     "test": {
-      "dependsOn": ["^build", "codegen:bigBoi", "codegen:bigLegacyRouter"],
+      "dependsOn": ["^build", "codegen-tests"],
       "cache": false
     },
     "test-ci": {
-      "dependsOn": ["^build", "codegen:bigBoi", "codegen:bigLegacyRouter"],
+      "dependsOn": ["^build", "codegen-tests"],
       "cache": false
     },
     "test-dev": {
@@ -60,7 +61,8 @@
     },
     "test-watch": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": ["^build", "codegen-tests"]
     },
     "type-check": {
       "dependsOn": ["^build"],

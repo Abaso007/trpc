@@ -1,8 +1,8 @@
 import { getServerAndReactClient } from './__reactHelpers';
-import { InfiniteData } from '@tanstack/react-query';
+import type { InfiniteData } from '@tanstack/react-query';
 import { render, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { inferReactQueryProcedureOptions } from '@trpc/react-query';
+import type { inferReactQueryProcedureOptions } from '@trpc/react-query';
 import { initTRPC } from '@trpc/server/src';
 import { konn } from 'konn';
 import React, { useEffect } from 'react';
@@ -88,7 +88,7 @@ describe('useQuery()', () => {
 
       // @ts-expect-error Should not exist
       proxy.post.byId.useInfiniteQuery;
-      const utils = proxy.useContext();
+      const utils = proxy.useUtils();
 
       useEffect(() => {
         utils.post.byId.invalidate();
@@ -130,10 +130,7 @@ describe('useQuery()', () => {
       ctx.proxy.post.byId.useQuery(
         { id: '1' },
         {
-          initialData: {
-            id: 1,
-            text: '',
-          },
+          initialData: '__result',
         },
       ),
     ).returns;

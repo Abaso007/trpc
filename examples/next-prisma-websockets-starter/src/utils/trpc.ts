@@ -3,7 +3,7 @@ import { loggerLink } from '@trpc/client/links/loggerLink';
 import { wsLink, createWSClient } from '@trpc/client/links/wsLink';
 import { createTRPCNext } from '@trpc/next';
 import type { inferProcedureOutput } from '@trpc/server';
-import { NextPageContext } from 'next';
+import type { NextPageContext } from 'next';
 import getConfig from 'next/config';
 import type { AppRouter } from 'server/routers/_app';
 import superjson from 'superjson';
@@ -52,7 +52,7 @@ export const trpc = createTRPCNext<AppRouter>({
 
     return {
       /**
-       * @link https://trpc.io/docs/links
+       * @link https://trpc.io/docs/client/links
        */
       links: [
         // adds pretty logs to your console in development and logs errors in production
